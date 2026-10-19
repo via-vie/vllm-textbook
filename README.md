@@ -2,9 +2,17 @@
 
 面向推理优化学习者的 vLLM 源码教材，以一条请求串联完整架构，涵盖调度、KV Cache、模型执行与性能优化，配套 SVG 图解、源码导读及 CPU/A100 实验。
 
+## 📖 在线阅读
+
+**[点击这里，打开图文教材 →](https://via-vie.github.io/vllm-/)**
+
+无需下载，直接在浏览器中阅读正文、查看 SVG 图解和逐步演示。
+
+[从第一章开始](https://via-vie.github.io/vllm-/#ch01) · [打开源码浏览器](https://via-vie.github.io/vllm-/source.html)
+
 ## vLLM 源码教材：从一条请求理解完整架构
 
-入口：[index.html](index.html)。22 章正文与 1 章附录，约 5.6 万字符的源稿，12 幅原创 SVG，69 道带答案的理解检查，77 个源码导读卡片。无需联网或启动服务器，支持搜索、章节导航、复查标记、字号、打印全书与请求事件播放器。
+[在线阅读](https://via-vie.github.io/vllm-/)。离线使用时，下载仓库并用浏览器打开根目录的 index.html。22 章正文与 1 章附录，约 5.6 万字符的源稿，12 幅原创 SVG，69 道带答案的理解检查，77 个源码导读卡片。无需联网或启动服务器，支持搜索、章节导航、复查标记、字号、打印全书与请求事件播放器。
 
 ## 这次可读性调整
 
@@ -31,7 +39,7 @@
 - _source/snapshot-ced6857/：123 个选择性阅读文件，保留原始 LICENSE，不是完整可安装仓库。
 - _research/source-manifest.json：文件 Git blob 身份、SHA256 与行数。
 - _research/source-index.json：AST 提取的真实类/函数范围。
-- [source.html](source.html)：可离线查行号、跳符号的源码阅读器；各章同时提供官方永久链接。
+- [源码浏览器](https://via-vie.github.io/vllm-/source.html)：可离线查行号、跳符号的源码阅读器；各章同时提供官方永久链接。
 - _research/：参考教程、官方版本元数据及获取记录。
 
 源码按核心闭环阅读：入口、配置、输入输出、消息、EngineCore、调度、KV、MRV2、Qwen3、FlashAttention、采样与生命周期。扩展章区分直接导读与后续入口，不声称逐行讲授全部 123 个文件或全部硬件后端。
@@ -84,6 +92,6 @@ python _tools/verify_textbook.py
 
 ## 旧版资料
 
-旧图解保留在[图解版.html](图解版.html)，备份在 _archive/图解版_20261019/。旧图解的固定主体/仅训练输出头数值与简化服务轨迹是独立旧案例，不能与本书重新训练后的模型和真实 MRV2 源码路径混合。
+旧图解保留在[旧版图解](https://via-vie.github.io/vllm-/图解版.html)，备份在 _archive/图解版_20261019/。旧图解的固定主体/仅训练输出头数值与简化服务轨迹是独立旧案例，不能与本书重新训练后的模型和真实 MRV2 源码路径混合。
 
 旧构建器只写图解版.html 与图解版说明.md，避免覆盖新教材入口。新入口由 build_textbook.py 管理。
