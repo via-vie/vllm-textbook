@@ -1,0 +1,26 @@
+{
+  "minimind": {
+    "url": "https://tutorial.baimuyuan.online/minimind-tutorial/",
+    "final_url": "https://tutorial.baimuyuan.online/minimind-tutorial/",
+    "status": 200,
+    "content_type": "text/html",
+    "bytes": 29586,
+    "sha256": "5f2f579688bef65325309ceef1c7f4eb1630ec31f7c0402d5df575130b194e5a"
+  },
+  "harness": {
+    "url": "https://tutorial.baimuyuan.online/deepseek-harness-tutorial/",
+    "final_url": "https://tutorial.baimuyuan.online/deepseek-harness-tutorial/",
+    "status": 200,
+    "content_type": "text/html",
+    "bytes": 37394,
+    "sha256": "189975e2126758bb648a228cb5e32906359f9f86082778b3aa8619e1e41ff317"
+  },
+  "vllm_tag": {
+    "url": "https://api.github.com/repos/vllm-project/vllm/git/ref/tags/v0.30.0",
+    "final_url": "https://api.github.com/repos/vllm-project/vllm/git/ref/tags/v0.30.0",
+    "status": 200,
+    "content_type": "application/json; charset=utf-8",
+    "bytes": 339,
+    "sha256": "b8b3722e18d81fe1252836c0170d602b88b0f5dcac8be69f16df6c12375ad59a"
+  }
+}

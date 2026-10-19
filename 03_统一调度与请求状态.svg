@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1795" viewBox="0 0 1600 1795" role="img" aria-labelledby="title3 desc3"><title id="title3">统一调度：本轮还欠多少 token 的计算</title><desc id="desc3">用已知 token 与已计算进度的差，连起 Prefill、Decode 和前缀命中。。解释每步输入、处理与输出。</desc><defs><marker id="arr3" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1795" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 03 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">统一调度：本轮还欠多少 token 的计算</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">用已知 token 与已计算进度的差，连起 Prefill、Decode 和前缀命中。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → A：known_ids=[11,10,7]；已计算 c=0；预算 T=4</text>
+<rect x="56" y="284" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  “已有 ID”和“已有 KV”必须同时记录</text>
+<rect x="80" y="360" width="330" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">时点</text>
+<rect x="410" y="360" width="620" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="424" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">已知序列</text>
+<rect x="1030" y="360" width="100" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1044" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">c</text>
+<rect x="1130" y="360" width="390" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1144" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">待计算</text>
+<rect x="80" y="414" width="330" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">刚加入</text>
+<rect x="410" y="414" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="424" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[11,10,7]</text>
+<rect x="1030" y="414" width="100" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1044" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="1130" y="414" width="390" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1144" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">3 个 Prompt token。</text>
+<rect x="80" y="468" width="330" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R1 前向后、采样前</text>
+<rect x="410" y="468" width="620" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="424" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[11,10,7]</text>
+<rect x="1030" y="468" width="100" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1044" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">3</text>
+<rect x="1130" y="468" width="390" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1144" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">到达序列尾，可以采样。</text>
+<rect x="80" y="522" width="330" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R1 采样鱼后</text>
+<rect x="410" y="522" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="424" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[11,10,7,8]</text>
+<rect x="1030" y="522" width="100" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1044" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">3</text>
+<rect x="1130" y="522" width="390" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1144" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1 个：p3 / ID8。</text>
+<rect x="80" y="576" width="330" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="608" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R2 采样 EOS 后</text>
+<rect x="410" y="576" width="620" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="424" y="608" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[11,10,7,8]；输出另记 [8,1]</text>
+<rect x="1030" y="576" width="100" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1044" y="608" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">4</text>
+<rect x="1130" y="576" width="390" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1144" y="608" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">请求结束；EOS 不进入前向。</text>
+<rect x="56" y="676" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="715" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  教学版调度决策：计算缺口，再分配预算</text>
+<rect x="80.0" y="752" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="784" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">计算需求</text>
+<text x="98.0" y="818" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">need = len(known_ids) − c</text>
+<text x="98.0" y="848" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">A 初始 need=3</text>
+<path d="M525.0 818L572.0 818" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr3)"/>
+<rect x="580.0" y="752" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="784" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">检查资源</text>
+<text x="598.0" y="818" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">n ≤ need / 剩余预算</text>
+<text x="598.0" y="848" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">准备 [c,c+n) 的 KV 块</text>
+<path d="M1025.0 818L1072.0 818" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr3)"/>
+<rect x="1080.0" y="752" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="784" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">下发本轮计划</text>
+<text x="1098.0" y="818" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">R1：{A:3}</text>
+<text x="1098.0" y="848" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">执行 positions=[0,1,2]</text>
+<text x="80" y="950" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">执行成功后 c ← c+n；未到 Prompt 尾部的 Prefill chunk 不会产生首个回复 token。</text>
+<rect x="56" y="1003" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1042" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  三种限制分别管什么</text>
+<text x="80" y="1079" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">max_num_batched_tokens：一轮允许新计算的 token 总数；本例 T=4 不表示最多只能接收 4 个请求。</text>
+<text x="80" y="1113" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">max_num_seqs：同轮序列数量上限；max_model_len：上下文上限；KV 容量：能保留多少历史状态。</text>
+<text x="80" y="1147" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">普通 Decode 通常每请求算 1 个新 token；Prefill 可分配多个或拆块。</text>
+<text x="80" y="1181" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">实际 V1 还处理抢占、优先级、异步与预留。这里的简化公式解释主线，不替代 Scheduler 源码。</text>
+<rect x="56" y="1251" width="1488" height="316" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1290" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  三个请求贯穿后续所有图</text>
+<rect x="80" y="1327" width="150" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="1359" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">请求</text>
+<rect x="230" y="1327" width="720" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="244" y="1359" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">到达 / 输入</text>
+<rect x="950" y="1327" width="570" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="964" y="1359" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">目的</text>
+<rect x="80" y="1381" width="150" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1413" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A</text>
+<rect x="230" y="1381" width="720" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="244" y="1413" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R1：[11,10,7]</text>
+<rect x="950" y="1381" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="964" y="1413" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">追踪 Prefill → 鱼 → EOS。</text>
+<rect x="80" y="1435" width="150" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1467" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">B</text>
+<rect x="230" y="1435" width="720" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="244" y="1467" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R2：[11,10,7]</text>
+<rect x="950" y="1435" width="570" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="964" y="1467" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">复用 A 已完成的前 2-token KV。</text>
+<rect x="80" y="1489" width="150" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1521" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">C</text>
+<rect x="230" y="1489" width="720" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="244" y="1521" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R2：[10,7,8,11,10,7,8]</text>
+<rect x="950" y="1489" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="964" y="1521" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">7-token 合成负载，展示分块与动态 batch。</text>
+<rect x="56" y="1589" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1629" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → R1：{A:3}，需要计算 [0,3) → 04：分配物理 KV 槽位</text>
+<text x="56" y="1689" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://vllm.ai/blog/2025-01-27-v1-alpha-release" target="_blank"><text x="56" y="1725" font-size="17" fill="#2563eb">V1 architecture blog (2025)</text></a>
+<a href="https://github.com/vllm-project/vllm/blob/v0.30.0/vllm/v1/core/sched/scheduler.py" target="_blank"><text x="806" y="1725" font-size="17" fill="#2563eb">v0.30.0 · scheduler.py</text></a>
+</svg>

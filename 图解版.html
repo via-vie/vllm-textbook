@@ -1,0 +1,1492 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>vLLM详解 · 连续SVG教程</title><style>*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:86px}body{margin:0;color:#14243b;background:#eef2f7;font-family:"Microsoft YaHei",Arial,sans-serif}a{color:#2563eb;text-decoration:none}header{height:70px;position:sticky;top:0;z-index:10;background:#14243b;color:white;display:flex;align-items:center;justify-content:space-between;padding:0 26px;gap:14px}header strong{font-size:21px}header small{color:#afc4df;margin-left:18px}button{border:1px solid #ccd9e8;border-radius:8px;background:white;color:#14243b;padding:8px 13px;cursor:pointer;font:inherit}button:hover{background:#eaf1ff}button:disabled{opacity:.4;cursor:default}aside{position:fixed;top:70px;bottom:0;left:0;width:264px;background:#fff;border-right:1px solid #d9e3ee;overflow:auto;padding:20px 12px}aside a{display:flex;padding:10px 9px;font-size:14px;line-height:1.6;border-radius:7px;color:#52647b;gap:10px}aside a.active{background:#eaf1ff;color:#2563eb;font-weight:bold}aside span{font-family:Consolas,monospace}main{margin-left:264px;padding:28px;max-width:1900px}.intro,.player,.sources{background:white;border:1px solid #d9e3ee;border-radius:16px;padding:26px;margin-bottom:26px}h1{font-size:30px;margin:0 0 12px}h2{font-size:23px;margin:0 0 16px}p{line-height:1.9;margin:8px 0}.muted{color:#52647b}.tag{display:inline-block;padding:5px 9px;background:#e5f6f1;border-radius:6px;color:#087f8c;font-size:13px;margin:0 8px 12px 0}.chapter{margin-bottom:24px;overflow:auto;background:#f3f6fb;border:1px solid #d9e3ee;border-radius:12px;scroll-margin-top:82px}.sectionbar{display:flex;justify-content:space-between;padding:12px 18px;background:white;font-size:14px}.chapter svg{display:block;width:100%;height:auto}body.actual .chapter svg{width:1600px;max-width:none}.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}.rounds{display:flex;gap:8px}.rounds button.selected{background:#2563eb;color:white;border-color:#2563eb}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.card{border:1px solid #d9e3ee;border-radius:10px;padding:16px;background:#f7f9fc}.card h3{margin:0 0 12px;color:#2563eb}.card code,pre{white-space:pre-wrap;word-break:break-word;font-family:Consolas,"Microsoft YaHei",monospace;font-size:14px;line-height:1.8}table{width:100%;border-collapse:collapse;margin-top:16px}td,th{padding:10px;text-align:left;border-bottom:1px solid #d9e3ee;font-size:14px;line-height:1.7}th{color:#52647b;background:#f3f6fb}#roundnote{padding:14px 16px;background:#e5f6f1;border-radius:8px;line-height:1.8}.sources li{line-height:2.1}#progress{height:3px;background:#60a5fa;position:fixed;top:67px;left:0;z-index:12}details{margin-top:18px}summary{cursor:pointer;color:#2563eb}footer{padding:16px;color:#52647b;font-size:13px}@media(max-width:1100px){aside{width:205px}main{margin-left:205px;padding:14px}header small{display:none}.grid{grid-template-columns:1fr}}@media(max-width:760px){aside{display:none}main{margin-left:0}header{padding:0 10px}header strong{font-size:16px}header button{font-size:12px;padding:7px}.intro,.player,.sources{padding:18px}h1{font-size:24px}}</style></head><body>
+<header><div><strong>vLLM详解</strong><small>同一案例 · 十四步贯通 · 官方资料</small></div><div class="controls" style="margin:0"><button id="prev">上一步</button><span id="pageno">1 / 14</span><button id="next">下一步</button><button id="zoom">矩阵1:1</button></div></header><div id="progress"></div>
+<aside><a href="#fig1" data-n="1"><span>01</span>一条请求，如何变成持续输出</a><a href="#fig2" data-n="2"><span>02</span>启动引擎：谁在 CPU，谁在 GPU</a><a href="#fig3" data-n="3"><span>03</span>统一调度：本轮还欠多少 token 的计算</a><a href="#fig4" data-n="4"><span>04</span>KV 分页：逻辑连续，物理可以不连续</a><a href="#fig5" data-n="5"><span>05</span>Prefill：ID、位置和槽位一起交给模型</a><a href="#fig6" data-n="6"><span>06</span>Decode：按页读取 KV，算出下一 token</a><a href="#fig7" data-n="7"><span>07</span>连续批处理：每轮 batch 都会变化</a><a href="#fig8" data-n="8"><span>08</span>打包执行：四个 token 属于三个上下文</a><a href="#fig9" data-n="9"><span>09</span>前缀缓存：复用已经算过的上下文</a><a href="#fig10" data-n="10"><span>10</span>显存容量：多少历史，多少请求</a><a href="#fig11" data-n="11"><span>11</span>执行加速：分页、FlashAttention、编译与图</a><a href="#fig12" data-n="12"><span>12</span>多 GPU：切权重、切层，还是复制模型</a><a href="#fig13" data-n="13"><span>13</span>进阶优化：精度、生成轮次与 P/D 分离</a><a href="#fig14" data-n="14"><span>14</span>闭合整条链：怎么知道优化有效</a></aside><main>
+<div class="intro"><span class="tag">vLLM V1主线</span><span class="tag">资料核对2026-10-18</span><span class="tag">可复现原理模拟</span>
+<h1>一条请求如何穿过 vLLM</h1><p>沿用“小猫喜欢吃”的统一模型，从API、调度、分页KV走到Prefill、Decode和流式输出，再把前缀复用、连续批处理与GPU执行优化放回同一条链。</p>
+<p class="muted">每幅图都可独立下载SVG。矩阵显示约3位小数，计算与JSON保持完整精度。A/B预测来自上级教学模型，C输出和五轮计划为指定模拟；没有运行真实vLLM或测量GPU性能。</p>
+<p><a href="00_vLLM_连续全景.svg" download>下载完整连续SVG</a> · <a href="README.md">说明与源码定位</a> · <a href="../index.html">返回Transformer教程</a> · <a href="_data/serving_trace.json">调度完整数据</a></p></div>
+<div class="player" id="player"><h2>先看一遍：五轮调度播放器</h2><p class="muted">点轮次检查输入、进度和输出。物理块表是本轮前向完成、释放已结束请求引用前的快照；请求卡片展示轮末逻辑状态。</p><div class="controls"><button id="rprev">前一轮</button><div class="rounds"><button>R1</button><button>R2</button><button>R3</button><button>R4</button><button>R5</button></div><button id="rnext">后一轮</button><button id="play">自动播放</button></div><h3 id="roundtitle"></h3><div id="roundnote"></div><pre id="packed"></pre><div class="grid" id="statecards"></div><details><summary>展开物理KV块（含可回收旧缓存）</summary><table><thead><tr><th>物理块</th><th>token IDs</th><th>活动引用数</th><th>缓存身份</th></tr></thead><tbody id="poolrows"></tbody></table></details></div>
+<section class="chapter" id="fig1"><div class="sectionbar"><span>第 01 步</span><a href="01_请求全流程与统一案例.svg" download>下载本步 SVG ↗</a></div><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1725" viewBox="0 0 1600 1725" role="img" aria-labelledby="title1 desc1"><title id="title1">一条请求，如何变成持续输出</title><desc id="desc1">模型负责预测；vLLM 组织请求、计算、KV 显存和输出的生命周期。。解释每步输入、处理与输出。</desc><defs><marker id="arr1" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1725" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 01 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">一条请求，如何变成持续输出</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">模型负责预测；vLLM 组织请求、计算、KV 显存和输出的生命周期。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → 文本“小猫喜欢吃” + 已加载的模型 / Tokenizer</text>
+<rect x="56" y="284" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  把既有的 Transformer 数学流程放进服务系统</text>
+<rect x="80.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">客户端</text>
+<text x="98.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">提交 Prompt / messages</text>
+<text x="98.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">接收分段文本</text>
+<path d="M525.0 426L572.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr1)"/>
+<rect x="580.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">vLLM 运行时</text>
+<text x="598.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">队列 → 调度 → KV 管理</text>
+<text x="598.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">GPU 执行 → 返回输出</text>
+<path d="M1025.0 426L1072.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr1)"/>
+<rect x="1080.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">模型前向</text>
+<text x="1098.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">IDs → 隐藏状态 → logits</text>
+<text x="1098.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">采样得到下一 token ID</text>
+<text x="80" y="558" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">读图顺序：输入是什么 → 这一层做了什么 → 状态变成什么 → 下一步拿走什么。</text>
+<rect x="56" y="611" width="1488" height="424" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="650" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  本教程固定使用这一套参数</text>
+<rect x="80" y="687" width="220" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="719" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">对象</text>
+<rect x="300" y="687" width="600" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="314" y="719" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">取值</text>
+<rect x="900" y="687" width="620" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="914" y="719" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">作用</text>
+<rect x="80" y="741" width="220" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="773" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">Tokenizer</text>
+<rect x="300" y="741" width="600" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="314" y="773" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">V=12；[11,10,7]=[小猫,喜欢,吃]</text>
+<rect x="900" y="741" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="914" y="773" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">ID 是词表索引；沿用上级教程的 BPE。</text>
+<rect x="80" y="795" width="220" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="827" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">模型</text>
+<rect x="300" y="795" width="600" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="314" y="827" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">D=4；h_q=h_kv=2；d=2；L=1；F=6</text>
+<rect x="900" y="795" width="620" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="914" y="827" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">每 token 每层有 K[2,2] 和 V[2,2]。</text>
+<rect x="80" y="849" width="220" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="881" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">运行时</text>
+<rect x="300" y="849" width="600" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="314" y="881" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">b=2 token / KV 块；T=4 token / 轮</text>
+<rect x="900" y="849" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="914" y="881" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">只用于画清地址，不是生产后端参数建议。</text>
+<rect x="80" y="903" width="220" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="935" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">输出</text>
+<rect x="300" y="903" width="600" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="314" y="935" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A/B：8“鱼” → 1“EOS”</text>
+<rect x="900" y="903" width="620" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="914" y="935" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">来自上级教学模型的贪心预测。</text>
+<rect x="80" y="957" width="220" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="989" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">容量与计算</text>
+<rect x="300" y="957" width="600" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="314" y="989" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">按 FP16 算容量；数值计算保留完整精度</text>
+<rect x="900" y="957" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="914" y="989" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">显示约 3 位小数；不把显示舍入值继续代入。</text>
+<rect x="56" y="1057" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1096" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  本地执行的边界</text>
+<text x="80" y="1133" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">真实执行：读取既有模型数值，计算分页寻址、分块 Softmax 合并与五轮请求调度模拟，保存完整精度 JSON。</text>
+<text x="80" y="1167" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">没有安装 / 运行 vLLM 或 GPU 基准；模拟省略异步、投机 token、完整输入预留和特殊模型路径。</text>
+<text x="80" y="1201" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">A/B 的预测来自既有模型；长请求 C 只用来展示调度，其 [10,EOS] 是明确指定的模拟输出。</text>
+<text x="80" y="1235" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">生产服务加载自己的模型检查点与 Tokenizer；不会收到请求后重新学习 BPE 或训练输出头。</text>
+<rect x="56" y="1305" width="1488" height="192" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1344" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  token ID、向量、KV 和文本是不同对象</text>
+<text x="80" y="1381" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">ID8 是索引；Embedding 把索引变成 D 维向量；逐层前向产生 K/V；反分词才产生用户看到的“鱼”。</text>
+<text x="80" y="1415" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">采样到 ID8 时它的 KV 尚未计算，下一轮把 8 输入模型才得到位置 3 的 KV。</text>
+<text x="80" y="1449" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">采样 EOS 后结束本例；EOS 不输入模型，所以 A 最终有 4-token KV，而输出 ID 列表是 [8,1]。</text>
+<rect x="56" y="1519" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1559" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 请求 A 与模型配置 → 02：准备进程、权重与 GPU 内存</text>
+<text x="56" y="1619" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/design/arch_overview/" target="_blank"><text x="56" y="1655" font-size="17" fill="#2563eb">Architecture Overview</text></a>
+<a href="https://vllm.ai/blog/2025-01-27-v1-alpha-release" target="_blank"><text x="806" y="1655" font-size="17" fill="#2563eb">V1 architecture blog (2025)</text></a>
+</svg></section><section class="chapter" id="fig2"><div class="sectionbar"><span>第 02 步</span><a href="02_进程架构与启动内存.svg" download>下载本步 SVG ↗</a></div><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1835" viewBox="0 0 1600 1835" role="img" aria-labelledby="title2 desc2"><title id="title2">启动引擎：谁在 CPU，谁在 GPU</title><desc id="desc2">执行环境准备一次，再重复处理许多请求；请求之间共享模型权重。。解释每步输入、处理与输出。</desc><defs><marker id="arr2" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1835" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 02 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">启动引擎：谁在 CPU，谁在 GPU</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">执行环境准备一次，再重复处理许多请求；请求之间共享模型权重。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → 检查点 + Tokenizer + dtype / GPU / 并行配置</text>
+<rect x="56" y="284" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  启动时准备可重复使用的资源</text>
+<rect x="80.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">加载模型</text>
+<text x="98.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">读取结构与权重</text>
+<text x="98.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">选择 dtype / 并行切分</text>
+<path d="M400.0 426L447.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr2)"/>
+<rect x="455.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="473.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">规划内存</text>
+<text x="473.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">权重与峰值工作区</text>
+<text x="473.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">剩余预算用于 KV</text>
+<path d="M775.0 426L822.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr2)"/>
+<rect x="830.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="848.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">建立 KV 块池</text>
+<text x="848.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">预留底层张量</text>
+<text x="848.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">按块分配使用权</text>
+<path d="M1150.0 426L1197.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr2)"/>
+<rect x="1205.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1223.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">编译与预热</text>
+<text x="1223.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">准备适用算子 / 形状</text>
+<text x="1223.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">捕获可复用执行图</text>
+<text x="80" y="558" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">“分配 KV 块”通常是在既有池中分配块 ID，不是每生成一个 token 都做一次 GPU malloc。</text>
+<rect x="56" y="611" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="650" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  V1 典型进程职责：请求向右，结果向左回传</text>
+<rect x="80.0" y="687" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="719" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">API Server / CPU</text>
+<text x="98.0" y="753" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">HTTP / 参数检查</text>
+<text x="98.0" y="783" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">模板、分词与流式返回</text>
+<path d="M525.0 753L572.0 753" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr2)"/>
+<rect x="580.0" y="687" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="719" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">EngineCore / CPU</text>
+<text x="598.0" y="753" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">请求状态、调度与 KV 管理</text>
+<text x="598.0" y="783" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">协调模型执行器</text>
+<path d="M1025.0 753L1072.0 753" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr2)"/>
+<rect x="1080.0" y="687" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="719" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Worker / GPU</text>
+<text x="1098.0" y="753" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">ModelRunner 组织输入</text>
+<text x="1098.0" y="783" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">前向、KV 读写与采样</text>
+<text x="80" y="885" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">单卡主线：1 API + 1 EngineCore + 1 GPU Worker；API 与 EngineCore 典型使用 IPC 消息。</text>
+<rect x="56" y="938" width="1488" height="424" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="977" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  内存中分别存什么</text>
+<rect x="80" y="1014" width="300" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="1046" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">对象</text>
+<rect x="380" y="1014" width="570" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="394" y="1046" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">生命周期</text>
+<rect x="950" y="1014" width="570" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="964" y="1046" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">谁使用</text>
+<rect x="80" y="1068" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1100" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">模型权重</text>
+<rect x="380" y="1068" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="1100" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">长期驻留，各请求共享只读</text>
+<rect x="950" y="1068" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="964" y="1100" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">Linear / Norm / Attention / FFN。</text>
+<rect x="80" y="1122" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1154" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">KV 块池</text>
+<rect x="380" y="1122" width="570" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="394" y="1154" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">底层池长期存在；引用随请求变化</text>
+<rect x="950" y="1122" width="570" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="964" y="1154" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">KV manager 管理；Attention 后端读写。</text>
+<rect x="80" y="1176" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1208" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">请求元数据</text>
+<rect x="380" y="1176" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="1208" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">从到达到结束 / 取消</text>
+<rect x="950" y="1176" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="964" y="1208" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">ID、进度、位置、块表与采样配置。</text>
+<rect x="80" y="1230" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1262" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">中间激活 / 工作区</text>
+<rect x="380" y="1230" width="570" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="394" y="1262" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">在本轮执行中产生并复用</text>
+<rect x="950" y="1230" width="570" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="964" y="1262" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">Q、各层隐藏状态和算子临时结果。</text>
+<rect x="80" y="1284" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1316" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">编译与 CUDA Graph</text>
+<rect x="380" y="1284" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="1316" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">按配置和适用形状复用</text>
+<rect x="950" y="1284" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="964" y="1316" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">减少执行开销，也占启动时间和内存。</text>
+<rect x="56" y="1384" width="1488" height="192" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1423" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  请求开始运行时</text>
+<text x="80" y="1460" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">Tokenizer 产生 [11,10,7] 后建立请求 A，模型权重无须为 A 重新加载。</text>
+<text x="80" y="1494" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">调度器先决定算哪些位置，KV manager 保证有可写槽位，再让 ModelRunner 执行。</text>
+<text x="80" y="1528" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">多卡部署按并行组增加 Worker；进程数和职责拆分随版本、前端与模型路径变化。</text>
+<rect x="56" y="1598" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1638" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 就绪的 Worker / KV 池与请求 A → 03：建立调度状态</text>
+<text x="56" y="1698" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/design/arch_overview/" target="_blank"><text x="56" y="1734" font-size="17" fill="#2563eb">Architecture Overview</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/torch_compile/" target="_blank"><text x="806" y="1734" font-size="17" fill="#2563eb">torch.compile integration</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/cuda_graphs/" target="_blank"><text x="56" y="1765" font-size="17" fill="#2563eb">CUDA Graphs</text></a>
+</svg></section><section class="chapter" id="fig3"><div class="sectionbar"><span>第 03 步</span><a href="03_统一调度与请求状态.svg" download>下载本步 SVG ↗</a></div><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1795" viewBox="0 0 1600 1795" role="img" aria-labelledby="title3 desc3"><title id="title3">统一调度：本轮还欠多少 token 的计算</title><desc id="desc3">用已知 token 与已计算进度的差，连起 Prefill、Decode 和前缀命中。。解释每步输入、处理与输出。</desc><defs><marker id="arr3" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1795" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 03 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">统一调度：本轮还欠多少 token 的计算</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">用已知 token 与已计算进度的差，连起 Prefill、Decode 和前缀命中。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → A：known_ids=[11,10,7]；已计算 c=0；预算 T=4</text>
+<rect x="56" y="284" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  “已有 ID”和“已有 KV”必须同时记录</text>
+<rect x="80" y="360" width="330" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">时点</text>
+<rect x="410" y="360" width="620" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="424" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">已知序列</text>
+<rect x="1030" y="360" width="100" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1044" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">c</text>
+<rect x="1130" y="360" width="390" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1144" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">待计算</text>
+<rect x="80" y="414" width="330" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">刚加入</text>
+<rect x="410" y="414" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="424" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[11,10,7]</text>
+<rect x="1030" y="414" width="100" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1044" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="1130" y="414" width="390" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1144" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">3 个 Prompt token。</text>
+<rect x="80" y="468" width="330" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R1 前向后、采样前</text>
+<rect x="410" y="468" width="620" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="424" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[11,10,7]</text>
+<rect x="1030" y="468" width="100" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1044" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">3</text>
+<rect x="1130" y="468" width="390" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1144" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">到达序列尾，可以采样。</text>
+<rect x="80" y="522" width="330" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R1 采样鱼后</text>
+<rect x="410" y="522" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="424" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[11,10,7,8]</text>
+<rect x="1030" y="522" width="100" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1044" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">3</text>
+<rect x="1130" y="522" width="390" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1144" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1 个：p3 / ID8。</text>
+<rect x="80" y="576" width="330" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="608" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R2 采样 EOS 后</text>
+<rect x="410" y="576" width="620" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="424" y="608" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[11,10,7,8]；输出另记 [8,1]</text>
+<rect x="1030" y="576" width="100" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1044" y="608" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">4</text>
+<rect x="1130" y="576" width="390" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1144" y="608" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">请求结束；EOS 不进入前向。</text>
+<rect x="56" y="676" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="715" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  教学版调度决策：计算缺口，再分配预算</text>
+<rect x="80.0" y="752" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="784" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">计算需求</text>
+<text x="98.0" y="818" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">need = len(known_ids) − c</text>
+<text x="98.0" y="848" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">A 初始 need=3</text>
+<path d="M525.0 818L572.0 818" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr3)"/>
+<rect x="580.0" y="752" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="784" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">检查资源</text>
+<text x="598.0" y="818" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">n ≤ need / 剩余预算</text>
+<text x="598.0" y="848" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">准备 [c,c+n) 的 KV 块</text>
+<path d="M1025.0 818L1072.0 818" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr3)"/>
+<rect x="1080.0" y="752" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="784" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">下发本轮计划</text>
+<text x="1098.0" y="818" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">R1：{A:3}</text>
+<text x="1098.0" y="848" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">执行 positions=[0,1,2]</text>
+<text x="80" y="950" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">执行成功后 c ← c+n；未到 Prompt 尾部的 Prefill chunk 不会产生首个回复 token。</text>
+<rect x="56" y="1003" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1042" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  三种限制分别管什么</text>
+<text x="80" y="1079" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">max_num_batched_tokens：一轮允许新计算的 token 总数；本例 T=4 不表示最多只能接收 4 个请求。</text>
+<text x="80" y="1113" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">max_num_seqs：同轮序列数量上限；max_model_len：上下文上限；KV 容量：能保留多少历史状态。</text>
+<text x="80" y="1147" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">普通 Decode 通常每请求算 1 个新 token；Prefill 可分配多个或拆块。</text>
+<text x="80" y="1181" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">实际 V1 还处理抢占、优先级、异步与预留。这里的简化公式解释主线，不替代 Scheduler 源码。</text>
+<rect x="56" y="1251" width="1488" height="316" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1290" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  三个请求贯穿后续所有图</text>
+<rect x="80" y="1327" width="150" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="1359" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">请求</text>
+<rect x="230" y="1327" width="720" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="244" y="1359" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">到达 / 输入</text>
+<rect x="950" y="1327" width="570" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="964" y="1359" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">目的</text>
+<rect x="80" y="1381" width="150" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1413" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A</text>
+<rect x="230" y="1381" width="720" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="244" y="1413" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R1：[11,10,7]</text>
+<rect x="950" y="1381" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="964" y="1413" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">追踪 Prefill → 鱼 → EOS。</text>
+<rect x="80" y="1435" width="150" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1467" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">B</text>
+<rect x="230" y="1435" width="720" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="244" y="1467" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R2：[11,10,7]</text>
+<rect x="950" y="1435" width="570" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="964" y="1467" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">复用 A 已完成的前 2-token KV。</text>
+<rect x="80" y="1489" width="150" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1521" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">C</text>
+<rect x="230" y="1489" width="720" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="244" y="1521" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R2：[10,7,8,11,10,7,8]</text>
+<rect x="950" y="1489" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="964" y="1521" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">7-token 合成负载，展示分块与动态 batch。</text>
+<rect x="56" y="1589" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1629" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → R1：{A:3}，需要计算 [0,3) → 04：分配物理 KV 槽位</text>
+<text x="56" y="1689" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://vllm.ai/blog/2025-01-27-v1-alpha-release" target="_blank"><text x="56" y="1725" font-size="17" fill="#2563eb">V1 architecture blog (2025)</text></a>
+<a href="https://github.com/vllm-project/vllm/blob/v0.30.0/vllm/v1/core/sched/scheduler.py" target="_blank"><text x="806" y="1725" font-size="17" fill="#2563eb">v0.30.0 · scheduler.py</text></a>
+</svg></section><section class="chapter" id="fig4"><div class="sectionbar"><span>第 04 步</span><a href="04_分页KV与地址映射.svg" download>下载本步 SVG ↗</a></div><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1882" viewBox="0 0 1600 1882" role="img" aria-labelledby="title4 desc4"><title id="title4">KV 分页：逻辑连续，物理可以不连续</title><desc id="desc4">地址间接层把请求位置与底层存储分开；无需为每条请求预留一整段连续 KV。。解释每步输入、处理与输出。</desc><defs><marker id="arr4" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1882" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 04 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">KV 分页：逻辑连续，物理可以不连续</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">地址间接层把请求位置与底层存储分开；无需为每条请求预留一整段连续 KV。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → A 需要位置 0、1、2；b=2；预留的物理块池共 12 块</text>
+<rect x="56" y="284" width="1488" height="318" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  按 token 位置分块，每个槽实际放的是向量</text>
+<rect x="80" y="360" width="242" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="201.0" y="395" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">p0 / 小猫</text>
+<rect x="330" y="360" width="242" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="451.0" y="395" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">p1 / 喜欢</text>
+<rect x="580" y="360" width="242" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="701.0" y="395" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">p2 / 吃</text>
+<rect x="830" y="360" width="242" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="951.0" y="395" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">p3 / 待计算</text>
+<rect x="80" y="440" width="492" height="86" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="98" y="472" font-size="22" fill="#087f8c" font-weight="700" text-anchor="start">逻辑块 ℓ0：位置 [0,1]</text>
+<rect x="580" y="440" width="492" height="86" rx="12" fill="#fff1df" stroke="#d9e3ee"/>
+<text x="598" y="472" font-size="22" fill="#b65c12" font-weight="700" text-anchor="start">逻辑块 ℓ1：位置 [2,3]</text>
+<text x="80" y="571" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">每 token 每层保存 K[2,2] + V[2,2]，共 8 个数；不是把 ID 复制进显存就得到 KV。</text>
+<rect x="56" y="624" width="1488" height="390" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="663" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  A 的 block_table=[5,1]，只存物理块编号</text>
+<rect x="80" y="700" width="390" height="100" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="98" y="732" font-size="22" fill="#087f8c" font-weight="700" text-anchor="start">逻辑块 0 → 物理块 5</text>
+<text x="98" y="766" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">存 p0,p1</text>
+<rect x="80" y="840" width="390" height="100" rx="12" fill="#fff1df" stroke="#d9e3ee"/>
+<text x="98" y="872" font-size="22" fill="#b65c12" font-weight="700" text-anchor="start">逻辑块 1 → 物理块 1</text>
+<text x="98" y="906" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">存 p2,p3</text>
+<rect x="610" y="700" width="280" height="96" rx="12" fill="#f4f6f9" stroke="#d9e3ee"/>
+<text x="628" y="732" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">物理块 0</text>
+<text x="628" y="766" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">空闲</text>
+<rect x="910" y="700" width="280" height="96" rx="12" fill="#fff1df" stroke="#d9e3ee"/>
+<text x="928" y="732" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">物理块 1</text>
+<text x="928" y="766" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">p2,空槽</text>
+<rect x="1210" y="700" width="280" height="96" rx="12" fill="#f4f6f9" stroke="#d9e3ee"/>
+<text x="1228" y="732" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">物理块 2</text>
+<text x="1228" y="766" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">空闲</text>
+<rect x="610" y="830" width="280" height="96" rx="12" fill="#f4f6f9" stroke="#d9e3ee"/>
+<text x="628" y="862" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">物理块 3</text>
+<text x="628" y="896" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">空闲</text>
+<rect x="910" y="830" width="280" height="96" rx="12" fill="#f4f6f9" stroke="#d9e3ee"/>
+<text x="928" y="862" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">物理块 4</text>
+<text x="928" y="896" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">空闲</text>
+<rect x="1210" y="830" width="280" height="96" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="1228" y="862" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">物理块 5</text>
+<text x="1228" y="896" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">p0,p1</text>
+<path d="M480 745L1200 875" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr4)"/>
+<path d="M480 885L900 745" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr4)"/>
+<text x="80" y="983" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">图只画块 0–5；还有块 6–11。块 1 和块 5 无须搬到相邻地址。</text>
+<rect x="56" y="1036" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1075" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  位置 p → 逻辑块 → 物理块 → 槽位</text>
+<rect x="80" y="1112" width="240" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="1144" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">p</text>
+<rect x="320" y="1112" width="250" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="334" y="1144" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">ℓ=⌊p/b⌋</text>
+<rect x="570" y="1112" width="300" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="584" y="1144" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">offset=p mod b</text>
+<rect x="870" y="1112" width="300" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="884" y="1144" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">phys=table[ℓ]</text>
+<rect x="1170" y="1112" width="350" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1184" y="1144" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">slot=phys×b+offset</text>
+<rect x="80" y="1166" width="240" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1198" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="320" y="1166" width="250" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="334" y="1198" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="570" y="1166" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="584" y="1198" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="870" y="1166" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="884" y="1198" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">5</text>
+<rect x="1170" y="1166" width="350" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1184" y="1198" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">10</text>
+<rect x="80" y="1220" width="240" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1252" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="320" y="1220" width="250" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="334" y="1252" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="570" y="1220" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="584" y="1252" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="870" y="1220" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="884" y="1252" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">5</text>
+<rect x="1170" y="1220" width="350" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1184" y="1252" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">11</text>
+<rect x="80" y="1274" width="240" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1306" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">2</text>
+<rect x="320" y="1274" width="250" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="334" y="1306" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="570" y="1274" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="584" y="1306" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="870" y="1274" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="884" y="1306" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="1170" y="1274" width="350" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1184" y="1306" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">2</text>
+<rect x="80" y="1328" width="240" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1360" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">3（下轮）</text>
+<rect x="320" y="1328" width="250" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="334" y="1360" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="570" y="1328" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="584" y="1360" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="870" y="1328" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="884" y="1360" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="1170" y="1328" width="350" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1184" y="1360" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">3</text>
+<rect x="56" y="1428" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1467" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  当前写入与历史读取</text>
+<text x="80" y="1504" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">写新 KV：slot_mapping=[10,11,2]，每层把当前 K/V scatter 到对应物理位置。</text>
+<text x="80" y="1538" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">读旧 KV：Attention 通过 block_table 和有效长度，按逻辑顺序找到每个位置的向量。</text>
+<text x="80" y="1572" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">内核可直接读取分页缓存；图中“拼成矩阵”只为推导，不表示每轮先复制完整历史。</text>
+<text x="80" y="1606" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">每层都保存自己的 KV；分页仍有尾块未用槽与元数据开销，不会消除全部显存成本。</text>
+<rect x="56" y="1676" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1716" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → A table=[5,1]、R1 slots=[10,11,2] → 05：执行 Prefill</text>
+<text x="56" y="1776" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://arxiv.org/html/2309.06180v1" target="_blank"><text x="56" y="1812" font-size="17" fill="#2563eb">PagedAttention paper · §3–5</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/paged_attention/" target="_blank"><text x="806" y="1812" font-size="17" fill="#2563eb">Paged Attention kernel</text></a>
+</svg></section><section class="chapter" id="fig5"><div class="sectionbar"><span>第 05 步</span><a href="05_Prefill矩阵与KV写入.svg" download>下载本步 SVG ↗</a></div><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1715" viewBox="0 0 1600 1715" role="img" aria-labelledby="title5 desc5"><title id="title5">Prefill：ID、位置和槽位一起交给模型</title><desc id="desc5">沿用上级模型的实际矩阵；分页改变摆放方式，前向仍按模型结构执行。。解释每步输入、处理与输出。</desc><defs><marker id="arr5" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1715" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 05 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">Prefill：ID、位置和槽位一起交给模型</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">沿用上级模型的实际矩阵；分页改变摆放方式，前向仍按模型结构执行。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → R1 IDs=[11,10,7]；positions=[0,1,2]；slots=[10,11,2]</text>
+<rect x="56" y="284" width="1488" height="302" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  Embedding 查表：ID 变成 D=4 的行向量</text>
+<text x="80" y="358" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">H = E[[11,10,7]]，形状 [3,4]</text>
+<rect x="80" y="360" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="388.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.000</text>
+<rect x="210" y="360" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="388.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="340" y="360" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="405.0" y="388.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.000</text>
+<rect x="470" y="360" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="535.0" y="388.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="80" y="404" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="432.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="210" y="404" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="432.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.000</text>
+<rect x="340" y="404" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="405.0" y="432.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="470" y="404" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="535.0" y="432.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.000</text>
+<rect x="80" y="448" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="476.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.000</text>
+<rect x="210" y="448" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="476.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.000</text>
+<rect x="340" y="448" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="405.0" y="476.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="470" y="448" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="535.0" y="476.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="760" y="360" width="740" height="155" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="778" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">每一行的身份始终一致</text>
+<text x="778" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">第 0 行：小猫 / p0 / 槽10</text>
+<text x="778" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">第 1 行：喜欢 / p1 / 槽11</text>
+<text x="778" y="486" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">第 2 行：吃 / p2 / 槽2</text>
+<text x="80" y="555" font-size="22" fill="#087f8c" font-weight="400" text-anchor="start">RMSNorm → Q/K/V 投影 → 拆成 2 头；Q/K 用各自位置做 RoPE；V 不做 RoPE。</text>
+<rect x="56" y="608" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="647" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  head 0 的 Prefill K/V：这些真实数值将被缓存</text>
+<text x="80" y="682" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">K₀ [3,2]，已经过 RoPE</text>
+<rect x="80" y="684" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="712.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="210" y="684" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="712.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="80" y="728" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="756.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.764</text>
+<rect x="210" y="728" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="756.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.190</text>
+<rect x="80" y="772" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="800.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">-1.874</text>
+<rect x="210" y="772" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="800.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.697</text>
+<text x="580" y="682" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">V₀ [3,2]，对应同样槽位</text>
+<rect x="580" y="684" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="645.0" y="712.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="710" y="684" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="775.0" y="712.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="580" y="728" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="645.0" y="756.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="710" y="728" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="775.0" y="756.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="580" y="772" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="645.0" y="800.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="710" y="772" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="775.0" y="800.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<text x="1000" y="709" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">head 1 也有独立 K/V。</text>
+<text x="1000" y="744" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">Q 只供本轮 Attention。</text>
+<text x="1000" y="779" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">历史 Q 通常不缓存。</text>
+<text x="1000" y="814" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">完整矩阵见 _data。</text>
+<text x="80" y="882" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">在多层模型中，每层都重复此过程；该层 KV 来自该层输入，不能只存最后一层。</text>
+<rect x="56" y="935" width="1488" height="304" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="974" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  因果 Attention：多行并行，也不能看未来</text>
+<text x="80" y="1009" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">head 0 的 P=softmax(mask(QKᵀ/√2))</text>
+<rect x="80" y="1011" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="1039.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.000</text>
+<rect x="210" y="1011" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="1039.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="340" y="1011" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="405.0" y="1039.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="80" y="1055" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="1083.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.682</text>
+<rect x="210" y="1055" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="1083.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.318</text>
+<rect x="340" y="1055" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="405.0" y="1083.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="80" y="1099" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="1127.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.103</text>
+<rect x="210" y="1099" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="1127.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.033</text>
+<rect x="340" y="1099" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="405.0" y="1127.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.864</text>
+<text x="650" y="1036" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">p0 只读 [0]；p1 读 [0,1]；p2 读 [0,1,2]。</text>
+<text x="650" y="1075" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">Attention → Concat → W_O → 残差。</text>
+<text x="650" y="1114" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">RMSNorm → SwiGLU FFN → 残差 → 最终归一化。</text>
+<text x="650" y="1153" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">形状：[3,4] → [3,2,2] → 合并回 [3,4]。</text>
+<text x="80" y="1208" font-size="22" fill="#087f8c" font-weight="400" text-anchor="start">批量并行是同时计算多行；因果 mask 保证每行只依赖合法上下文。</text>
+<rect x="56" y="1261" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1300" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  取 Prompt 最后一行，预测下一个 ID</text>
+<text x="80" y="1337" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">尾行最终隐藏状态 [1,4] × W_lm[4,12] → logits[1,12]。</text>
+<text x="80" y="1371" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">本例 temperature=0 取 argmax，选择 ID8“鱼”；其普通 Softmax 概率是 0.988102。</text>
+<text x="80" y="1405" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">8 可立即反分词为“鱼”并发送；A 的 c=3，known_ids 已成为 [11,10,7,8]。</text>
+<text x="80" y="1439" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">刚生成的 8 还没有 KV；下轮计算 p3 才会产生它的 K/V。</text>
+<rect x="56" y="1509" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1549" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 缓存 p0–p2、采样 ID8 → 06：输入 8，分页读历史并 Decode</text>
+<text x="56" y="1609" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/design/paged_attention/" target="_blank"><text x="56" y="1645" font-size="17" fill="#2563eb">Paged Attention kernel</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/arch_overview/" target="_blank"><text x="806" y="1645" font-size="17" fill="#2563eb">Architecture Overview</text></a>
+</svg></section><section class="chapter" id="fig6"><div class="sectionbar"><span>第 06 步</span><a href="06_Decode分页Attention数值.svg" download>下载本步 SVG ↗</a></div><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2229" viewBox="0 0 1600 2229" role="img" aria-labelledby="title6 desc6"><title id="title6">Decode：按页读取 KV，算出下一 token</title><desc id="desc6">完整数值证明：物理位置分散，仍可得到与连续 Attention 相同的结果。。解释每步输入、处理与输出。</desc><defs><marker id="arr6" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="2229" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 06 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">Decode：按页读取 KV，算出下一 token</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">完整数值证明：物理位置分散，仍可得到与连续 Attention 相同的结果。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → ID8 / p3；A table=[5,1]；新 K/V 写 slot3</text>
+<rect x="56" y="284" width="1488" height="406" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  当前 Q 与追加后的逻辑 K/V（以 head 0 为例）</text>
+<text x="80" y="358" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">q [1,2]，来自 ID8 / p3</text>
+<rect x="80" y="360" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="388.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">-0.200</text>
+<rect x="210" y="360" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="388.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">-1.400</text>
+<text x="900" y="388" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">先计算 ID8 的 K/V，再让当前 Q 关注 p0–p3。</text>
+<text x="80" y="488" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">逻辑 K [4,2]：前两行在块5，后两行在块1</text>
+<rect x="80" y="490" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="518.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="210" y="490" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="518.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="80" y="534" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="562.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.764</text>
+<rect x="210" y="534" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="562.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.190</text>
+<rect x="80" y="578" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="606.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">-1.874</text>
+<rect x="210" y="578" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="606.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.697</text>
+<rect x="80" y="622" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="650.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">-1.400</text>
+<rect x="210" y="622" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="650.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.200</text>
+<text x="900" y="488" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">逻辑 V [4,2]</text>
+<rect x="900" y="490" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="965.0" y="518.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="1030" y="490" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="1095.0" y="518.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="900" y="534" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="965.0" y="562.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="1030" y="534" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="1095.0" y="562.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="900" y="578" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="965.0" y="606.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="1030" y="578" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="1095.0" y="606.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="900" y="622" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="965.0" y="650.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="1030" y="622" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="1095.0" y="650.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="56" y="712" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="751" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  每一页算出的打分，最后要在全局归一化</text>
+<rect x="80" y="788" width="300" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="820" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">物理块</text>
+<rect x="380" y="788" width="300" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="394" y="820" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">逻辑位置</text>
+<rect x="680" y="788" width="440" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="694" y="820" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">score=q·k/√2</text>
+<rect x="1120" y="788" width="400" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1134" y="820" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">最终概率</text>
+<rect x="80" y="842" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="874" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">5</text>
+<rect x="380" y="842" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="874" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="680" y="842" width="440" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="694" y="874" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">-1.400</text>
+<rect x="1120" y="842" width="400" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1134" y="874" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0.113</text>
+<rect x="80" y="896" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="928" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">5</text>
+<rect x="380" y="896" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="394" y="928" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="680" y="896" width="440" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="694" y="928" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">-1.286</text>
+<rect x="1120" y="896" width="400" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1134" y="928" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0.127</text>
+<rect x="80" y="950" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="982" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="380" y="950" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="982" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">2</text>
+<rect x="680" y="950" width="440" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="694" y="982" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">-0.426</text>
+<rect x="1120" y="950" width="400" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1134" y="982" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0.300</text>
+<rect x="80" y="1004" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1036" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="380" y="1004" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="394" y="1036" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">3</text>
+<rect x="680" y="1004" width="440" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="694" y="1036" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0.000</text>
+<rect x="1120" y="1004" width="400" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1134" y="1036" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0.460</text>
+<rect x="56" y="1104" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1143" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  不能每页独立 Softmax 后把输出简单平均</text>
+<text x="80" y="1180" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">每页 j 计算 m_j=max(scores_j)，l_j=Σexp(score−m_j)，u_j=Σexp(score−m_j)·v。</text>
+<text x="80" y="1214" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">取 m=max(m_j)，然后 l=Σexp(m_j−m)·l_j，u=Σexp(m_j−m)·u_j，最终 o=u/l。</text>
+<text x="80" y="1248" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">重标定让每页分母处于同一尺度，与所有有效 token 的一次 Softmax 数学等价。</text>
+<text x="80" y="1282" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">分页分配块与 GPU 计算 tile / split 不必一致；这里按两页合并是原理展示。</text>
+<rect x="56" y="1352" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1391" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  本例逐页统计和完整精度合并</text>
+<rect x="80" y="1428" width="350" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="1460" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">位置 / 汇总</text>
+<rect x="430" y="1428" width="200" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="444" y="1460" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">m</text>
+<rect x="630" y="1428" width="240" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="644" y="1460" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">l</text>
+<rect x="870" y="1428" width="650" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="884" y="1460" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">u / 输出</text>
+<rect x="80" y="1482" width="350" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1514" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">块5 / p0,p1</text>
+<rect x="430" y="1482" width="200" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="444" y="1514" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">-1.286</text>
+<rect x="630" y="1482" width="240" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="644" y="1514" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1.892</text>
+<rect x="870" y="1482" width="650" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="884" y="1514" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[1.262, 1.414]</text>
+<rect x="80" y="1536" width="350" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1568" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">块1 / p2,p3</text>
+<rect x="430" y="1536" width="200" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="444" y="1568" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0.000</text>
+<rect x="630" y="1536" width="240" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="644" y="1568" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1.653</text>
+<rect x="870" y="1536" width="650" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="884" y="1568" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[0.924, 2.338]</text>
+<rect x="80" y="1590" width="350" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1622" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">全局同一尺度</text>
+<rect x="430" y="1590" width="200" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="444" y="1622" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0.000</text>
+<rect x="630" y="1590" width="240" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="644" y="1622" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">2.176</text>
+<rect x="870" y="1590" width="650" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="884" y="1622" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[1.272, 2.729]</text>
+<rect x="80" y="1644" width="350" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1676" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">最终 o=u/l</text>
+<rect x="430" y="1644" width="200" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="444" y="1676" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">—</text>
+<rect x="630" y="1644" width="240" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="644" y="1676" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">—</text>
+<rect x="870" y="1644" width="650" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="884" y="1676" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[0.585, 1.254]</text>
+<rect x="56" y="1744" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1783" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">05  回到模型与结束状态</text>
+<text x="80" y="1820" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">head 0 输出 [0.585, 1.254]；head 1 输出 [0.832, 0.208]；Concat 后继续残差、FFN 与 LM head。</text>
+<text x="80" y="1854" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">最终选择 EOS=1，普通 Softmax 概率 0.996158；c=4，EOS 不进入下一轮。</text>
+<text x="80" y="1888" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">对照完整输入 [11,10,7,8] 的无缓存重算，缓存与分页结果在浮点误差范围内一致。</text>
+<text x="80" y="1922" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">这是 Dense Attention，分页并没有自动减少应读取的历史 token 数。</text>
+<rect x="56" y="1992" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="2032" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → A 完成；B/C 已加入 → 07：将全过程放回五轮并发调度</text>
+<text x="56" y="2092" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/design/paged_attention/" target="_blank"><text x="56" y="2128" font-size="17" fill="#2563eb">Paged Attention kernel</text></a>
+<a href="https://arxiv.org/html/2309.06180v1" target="_blank"><text x="806" y="2128" font-size="17" fill="#2563eb">PagedAttention paper · §3–5</text></a>
+<a href="https://arxiv.org/abs/2205.14135" target="_blank"><text x="56" y="2159" font-size="17" fill="#2563eb">FlashAttention paper (2022)</text></a>
+</svg></section><section class="chapter" id="fig7"><div class="sectionbar"><span>第 07 步</span><a href="07_连续批处理与分块Prefill.svg" download>下载本步 SVG ↗</a></div><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1868" viewBox="0 0 1600 1868" role="img" aria-labelledby="title7 desc7"><title id="title7">连续批处理：每轮 batch 都会变化</title><desc id="desc7">A 完成即可让出执行位置；长 Prompt 也能拆成几轮与 Decode 共同执行。。解释每步输入、处理与输出。</desc><defs><marker id="arr7" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1868" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 07 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">连续批处理：每轮 batch 都会变化</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">A 完成即可让出执行位置；长 Prompt 也能拆成几轮与 Decode 共同执行。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → A 在 R1 到达；B/C 在 R2 到达；T=4；B 命中 2-token 前缀</text>
+<rect x="56" y="284" width="1488" height="417" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  五轮时间线：格子表示新计算量，横向不是实际耗时</text>
+<text x="400" y="372" font-size="24" fill="#2563eb" font-weight="700" text-anchor="middle">R1</text>
+<text x="620" y="372" font-size="24" fill="#2563eb" font-weight="700" text-anchor="middle">R2</text>
+<text x="840" y="372" font-size="24" fill="#2563eb" font-weight="700" text-anchor="middle">R3</text>
+<text x="1060" y="372" font-size="24" fill="#2563eb" font-weight="700" text-anchor="middle">R4</text>
+<text x="1280" y="372" font-size="24" fill="#2563eb" font-weight="700" text-anchor="middle">R5</text>
+<text x="100" y="440" font-size="23" fill="#14243b" font-weight="700" text-anchor="start">请求 A</text>
+<rect x="295" y="402" width="210" height="62" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="400" y="440" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">P3 → 鱼</text>
+<rect x="515" y="402" width="210" height="62" rx="12" fill="#fff1df" stroke="#d9e3ee"/>
+<text x="620" y="440" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">D1 → EOS</text>
+<rect x="735" y="402" width="210" height="62" rx="12" fill="#f0f3f7" stroke="#d9e3ee"/>
+<text x="840" y="440" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">完成</text>
+<rect x="955" y="402" width="210" height="62" rx="12" fill="#f0f3f7" stroke="#d9e3ee"/>
+<text x="1060" y="440" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">—</text>
+<rect x="1175" y="402" width="210" height="62" rx="12" fill="#f0f3f7" stroke="#d9e3ee"/>
+<text x="1280" y="440" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">—</text>
+<text x="100" y="518" font-size="23" fill="#14243b" font-weight="700" text-anchor="start">请求 B</text>
+<rect x="295" y="480" width="210" height="62" rx="12" fill="#f0f3f7" stroke="#d9e3ee"/>
+<text x="400" y="518" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">未到达</text>
+<rect x="515" y="480" width="210" height="62" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="620" y="518" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">H2+P1 → 鱼</text>
+<rect x="735" y="480" width="210" height="62" rx="12" fill="#fff1df" stroke="#d9e3ee"/>
+<text x="840" y="518" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">D1 → EOS</text>
+<rect x="955" y="480" width="210" height="62" rx="12" fill="#f0f3f7" stroke="#d9e3ee"/>
+<text x="1060" y="518" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">完成</text>
+<rect x="1175" y="480" width="210" height="62" rx="12" fill="#f0f3f7" stroke="#d9e3ee"/>
+<text x="1280" y="518" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">—</text>
+<text x="100" y="596" font-size="23" fill="#14243b" font-weight="700" text-anchor="start">请求 C</text>
+<rect x="295" y="558" width="210" height="62" rx="12" fill="#f0f3f7" stroke="#d9e3ee"/>
+<text x="400" y="596" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">未到达</text>
+<rect x="515" y="558" width="210" height="62" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="620" y="596" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">P2 / 7</text>
+<rect x="735" y="558" width="210" height="62" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="840" y="596" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">P3 / 7</text>
+<rect x="955" y="558" width="210" height="62" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1060" y="596" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">P2 → ID10</text>
+<rect x="1175" y="558" width="210" height="62" rx="12" fill="#fff1df" stroke="#d9e3ee"/>
+<text x="1280" y="596" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">D1 → EOS</text>
+<text x="80" y="670" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">P=Prefill 新算 token；D=Decode；H=命中缓存，不占本轮新计算 token 预算。</text>
+<rect x="56" y="723" width="1488" height="424" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="762" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  计划、输入和输出全部衔接上一轮</text>
+<rect x="80" y="799" width="220" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="831" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">轮次 / 用量</text>
+<rect x="300" y="799" width="340" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="314" y="831" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">调度字典</text>
+<rect x="640" y="799" width="390" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="654" y="831" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">packed IDs</text>
+<rect x="1030" y="799" width="490" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1044" y="831" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">轮末结果</text>
+<rect x="80" y="853" width="220" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="885" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R1：3/4</text>
+<rect x="300" y="853" width="340" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="314" y="885" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">{A:3}</text>
+<rect x="640" y="853" width="390" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="654" y="885" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[11,10,7]</text>
+<rect x="1030" y="853" width="490" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1044" y="885" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A→鱼，发布前 2-token 完整块。</text>
+<rect x="80" y="907" width="220" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="939" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R2：4/4</text>
+<rect x="300" y="907" width="340" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="314" y="939" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">{A:1,B:1,C:2}</text>
+<rect x="640" y="907" width="390" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="654" y="939" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[8,7,10,7]</text>
+<rect x="1030" y="907" width="490" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1044" y="939" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A→EOS；B→鱼；C 已算2/7。</text>
+<rect x="80" y="961" width="220" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="993" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R3：4/4</text>
+<rect x="300" y="961" width="340" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="314" y="993" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">{B:1,C:3}</text>
+<rect x="640" y="961" width="390" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="654" y="993" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[8,8,11,10]</text>
+<rect x="1030" y="961" width="490" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1044" y="993" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">B→EOS；C 已算5/7。</text>
+<rect x="80" y="1015" width="220" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1047" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R4：2/4</text>
+<rect x="300" y="1015" width="340" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="314" y="1047" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">{C:2}</text>
+<rect x="640" y="1015" width="390" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="654" y="1047" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[7,8]</text>
+<rect x="1030" y="1015" width="490" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1044" y="1047" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">C 完成 Prompt，模拟输出10。</text>
+<rect x="80" y="1069" width="220" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1101" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R5：1/4</text>
+<rect x="300" y="1069" width="340" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="314" y="1101" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">{C:1}</text>
+<rect x="640" y="1069" width="390" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="654" y="1101" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[10]</text>
+<rect x="1030" y="1069" width="490" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1044" y="1101" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">C 模拟输出 EOS，全部结束。</text>
+<rect x="56" y="1169" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1208" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  Continuous Batching 与 Chunked Prefill 各做什么</text>
+<text x="80" y="1245" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">连续批处理：每轮更新参与请求，A 完成后不再占 R3 的执行位置，不必等待整批请求一起结束。</text>
+<text x="80" y="1279" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">分块 Prefill：C 的 7-token Prompt 拆成 2+3+2；位置继续递增，后续 chunk 读取之前 chunk 的 KV。</text>
+<text x="80" y="1313" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">R2 共算 4 token，却来自 3 个请求；“请求 batch 大小”不能独自表达本轮计算量。</text>
+<text x="80" y="1347" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">总共新算 14 token：A4+B2+C8；B 另复用 2-token KV；三个 EOS 均未进入前向。</text>
+<rect x="56" y="1417" width="1488" height="192" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1456" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  token 预算的取舍</text>
+<text x="80" y="1493" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">较大 Prefill chunk 往往提高大矩阵执行效率，但可能拉长单轮、影响已在生成请求的 token 间隔。</text>
+<text x="80" y="1527" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">较小 chunk 更容易插入 Decode，但会增加调度、发射及重复访问开销；应结合实际负载测量。</text>
+<text x="80" y="1561" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">本图为原理模拟，省略实际异步与完整输入预留；没有声称所有版本都会产生这五轮相同计划。</text>
+<rect x="56" y="1631" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1671" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → R2 混合输入 [8,7,10,7] → 08：看 packed batch 如何隔离各自上下文</text>
+<text x="56" y="1731" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/configuration/optimization/" target="_blank"><text x="56" y="1767" font-size="17" fill="#2563eb">Optimization and Tuning</text></a>
+<a href="https://vllm.ai/blog/2025-01-27-v1-alpha-release" target="_blank"><text x="806" y="1767" font-size="17" fill="#2563eb">V1 architecture blog (2025)</text></a>
+<a href="https://github.com/vllm-project/vllm/blob/v0.30.0/vllm/v1/core/sched/scheduler.py" target="_blank"><text x="56" y="1798" font-size="17" fill="#2563eb">v0.30.0 · scheduler.py</text></a>
+</svg></section><section class="chapter" id="fig8"><div class="sectionbar"><span>第 08 步</span><a href="08_混合批次与GPU输入打包.svg" download>下载本步 SVG ↗</a></div><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1796" viewBox="0 0 1600 1796" role="img" aria-labelledby="title8 desc8"><title id="title8">打包执行：四个 token 属于三个上下文</title><desc id="desc8">Packed / ragged batch 把新 token 排在一起；元数据保证每行只看自己的历史。。解释每步输入、处理与输出。</desc><defs><marker id="arr8" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1796" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 08 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">打包执行：四个 token 属于三个上下文</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">Packed / ragged batch 把新 token 排在一起；元数据保证每行只看自己的历史。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → R2：A Decode 1；B Prefill 尾部 1；C Prefill 开头 2</text>
+<rect x="56" y="284" width="1488" height="316" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  先按请求展开，所有位置都来自各自状态</text>
+<rect x="80" y="360" width="310" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">请求 / 新 IDs</text>
+<rect x="390" y="360" width="220" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="404" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">positions</text>
+<rect x="610" y="360" width="470" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="624" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">已有 KV / 本轮写入</text>
+<rect x="1080" y="360" width="440" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1094" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">有效上下文</text>
+<rect x="80" y="414" width="310" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A：[8]</text>
+<rect x="390" y="414" width="220" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="404" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[3]</text>
+<rect x="610" y="414" width="470" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="624" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">已有 p0–p2；新写 slot3</text>
+<rect x="1080" y="414" width="440" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1094" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A 的 p0–p3，共4 token。</text>
+<rect x="80" y="468" width="310" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">B：[7]</text>
+<rect x="390" y="468" width="220" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="404" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[2]</text>
+<rect x="610" y="468" width="470" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="624" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">共享前2；新写 slot14</text>
+<rect x="1080" y="468" width="440" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1094" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">B 的 p0–p2，共3 token。</text>
+<rect x="80" y="522" width="310" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">C：[10,7]</text>
+<rect x="390" y="522" width="220" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="404" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[0,1]</text>
+<rect x="610" y="522" width="470" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="624" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">新写 slots=[6,7]</text>
+<rect x="1080" y="522" width="440" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1094" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">p0 只看自身；p1 看 p0,p1。</text>
+<rect x="56" y="622" width="1488" height="340" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="661" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  把新 token 打包成四行，而不是补齐到统一 Prompt 长度</text>
+<rect x="80" y="698" width="232" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="196.0" y="733" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">A / 8</text>
+<rect x="320" y="698" width="232" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="436.0" y="733" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">B / 7</text>
+<rect x="560" y="698" width="232" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="676.0" y="733" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">C / 10</text>
+<rect x="800" y="698" width="232" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="916.0" y="733" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">C / 7</text>
+<text x="80" y="808" font-size="24" fill="#14243b" font-weight="400" text-anchor="start">input_ids       = [8, 7, 10, 7]</text>
+<text x="80" y="847" font-size="24" fill="#14243b" font-weight="400" text-anchor="start">positions       = [3, 2, 0, 1]</text>
+<text x="80" y="886" font-size="24" fill="#14243b" font-weight="400" text-anchor="start">slot_mapping    = [3, 14, 6, 7]</text>
+<text x="80" y="925" font-size="24" fill="#14243b" font-weight="400" text-anchor="start">query_start_loc = [0, 1, 2, 4]</text>
+<text x="1100" y="718" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">边界 [0,1,2,4]：</text>
+<text x="1100" y="754" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">A 占行 [0,1)</text>
+<text x="1100" y="790" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">B 占行 [1,2)</text>
+<text x="1100" y="826" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">C 占行 [2,4)</text>
+<rect x="56" y="984" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1023" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  Packed 行号不是 token 的模型位置</text>
+<text x="80" y="1060" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">positions=[3,2,0,1] 不能改成 [0,1,2,3]；RoPE 使用本请求位置，不使用 packed 全局行号。</text>
+<text x="80" y="1094" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">Attention 还需要 query_start_loc、各请求 block_table 和有效长度，才能找到各自合法上下文。</text>
+<text x="80" y="1128" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">A/B 仅因相同前缀共享物理块5；私有尾部在块1与块7。C 不能关注 A/B。</text>
+<text x="80" y="1162" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">共享权重的线性层可按 packed 大矩阵计算；Attention 后端再依据请求边界与因果关系处理。</text>
+<rect x="56" y="1232" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1271" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  前向结束后，恢复请求身份并更新状态</text>
+<rect x="80.0" y="1308" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="1340" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Packed H [4,4]</text>
+<text x="98.0" y="1374" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">查表、Norm、投影</text>
+<text x="98.0" y="1404" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">按槽位写新 K/V</text>
+<path d="M525.0 1374L572.0 1374" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr8)"/>
+<rect x="580.0" y="1308" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="1340" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Attention 与 FFN</text>
+<text x="598.0" y="1374" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">读各自块表和上下文</text>
+<text x="598.0" y="1404" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">保持行与请求的对应</text>
+<path d="M1025.0 1374L1072.0 1374" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr8)"/>
+<rect x="1080.0" y="1308" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="1340" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">按请求取尾部输出</text>
+<text x="1098.0" y="1374" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">A→EOS；B→鱼</text>
+<text x="1098.0" y="1404" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">C 未到 Prompt 尾部</text>
+<text x="80" y="1506" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">本例非投机生成只对到达可采样位置的请求返回 token；部分 Prefill chunk 不生成首 token。</text>
+<rect x="56" y="1559" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1599" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 各请求进度与共享块引用 → 09：解释前缀命中的完整生命周期</text>
+<text x="56" y="1659" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://vllm.ai/blog/2025-01-27-v1-alpha-release" target="_blank"><text x="56" y="1695" font-size="17" fill="#2563eb">V1 architecture blog (2025)</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/paged_attention/" target="_blank"><text x="806" y="1695" font-size="17" fill="#2563eb">Paged Attention kernel</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/arch_overview/" target="_blank"><text x="56" y="1726" font-size="17" fill="#2563eb">Architecture Overview</text></a>
+</svg></section><section class="chapter" id="fig9"><div class="sectionbar"><span>第 09 步</span><a href="09_前缀缓存与引用生命周期.svg" download>下载本步 SVG ↗</a></div><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1970" viewBox="0 0 1600 1970" role="img" aria-labelledby="title9 desc9"><title id="title9">前缀缓存：复用已经算过的上下文</title><desc id="desc9">先有因果相同的前缀，才有相同 KV；词语相同但之前历史不同，仍不能复用。。解释每步输入、处理与输出。</desc><defs><marker id="arr9" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1970" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 09 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">前缀缓存：复用已经算过的上下文</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">先有因果相同的前缀，才有相同 KV；词语相同但之前历史不同，仍不能复用。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → A 已发布块5=[11,10]；B 输入 [11,10,7]</text>
+<rect x="56" y="284" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  B 跳过前两行的模型前向，尾部自己计算</text>
+<rect x="80.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">A：table=[5,1]</text>
+<text x="98.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">块5：[11,10] / 完整</text>
+<text x="98.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">块1：[7,空] / R1后</text>
+<path d="M525.0 426L572.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr9)"/>
+<rect x="580.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">共享物理块5</text>
+<text x="598.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">保存 p0,p1 的各层 KV</text>
+<text x="598.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">R2 ref_cnt：1 → 2</text>
+<path d="M1025.0 426L1072.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr9)"/>
+<rect x="1080.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">B：table=[5,7]</text>
+<text x="1098.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">p0,p1 直接指向块5</text>
+<text x="1098.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">p2 的7写私有块7</text>
+<text x="80" y="558" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">B 只计算 p2，但 p2 的 Q 仍读取三 token 上下文；复用 KV 不等于直接返回旧回复。</text>
+<rect x="56" y="611" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="650" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  缓存键必须体现“当前块之前的全部历史”</text>
+<text x="80" y="687" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">概念键：H_j = hash(H_(j−1), 本块 token IDs, 额外身份信息)。父 hash 将前面的上下文带入。</text>
+<text x="80" y="721" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">同样的 [11,10] 出现在不同历史后面，逐层状态可能不同；不能只对当前块的文字求 hash。</text>
+<text x="80" y="755" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">LoRA、图像内容等会改变状态，应纳入身份；还可通过 cache salt 控制复用范围。</text>
+<text x="80" y="789" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">本地模拟用“完整前缀 IDs 的 SHA-256”表达因果身份，并未复制 vLLM 的具体序列化实现。</text>
+<rect x="56" y="859" width="1488" height="424" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="898" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  引用数归零，不等于缓存内容立刻被擦除</text>
+<rect x="80" y="935" width="280" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="967" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">时点</text>
+<rect x="360" y="935" width="200" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="374" y="967" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">块5引用</text>
+<rect x="560" y="935" width="350" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="574" y="967" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">私有尾块</text>
+<rect x="910" y="935" width="610" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="924" y="967" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">作用</text>
+<rect x="80" y="989" width="280" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1021" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R1 后</text>
+<rect x="360" y="989" width="200" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="374" y="1021" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="560" y="989" width="350" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="574" y="1021" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A：块1</text>
+<rect x="910" y="989" width="610" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="924" y="1021" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">完整块5可被缓存索引找到。</text>
+<rect x="80" y="1043" width="280" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1075" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R2 B 命中</text>
+<rect x="360" y="1043" width="200" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="374" y="1075" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">2</text>
+<rect x="560" y="1043" width="350" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="574" y="1075" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">B 新分块7</text>
+<rect x="910" y="1043" width="610" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="924" y="1075" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A/B 共用只读完整块。</text>
+<rect x="80" y="1097" width="280" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1129" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R2 A 结束</text>
+<rect x="360" y="1097" width="200" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="374" y="1129" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="560" y="1097" width="350" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="574" y="1129" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">块1引用归零</text>
+<rect x="910" y="1097" width="610" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="924" y="1129" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">B 仍在用块5，不可给其他请求覆盖。</text>
+<rect x="80" y="1151" width="280" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1183" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R3 B 结束</text>
+<rect x="360" y="1151" width="200" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="374" y="1183" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="560" y="1151" width="350" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="574" y="1183" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">块7引用归零</text>
+<rect x="910" y="1151" width="610" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="924" y="1183" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">块5可保留 KV/hash，进入可回收队列。</text>
+<rect x="80" y="1205" width="280" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1237" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">新分配有压力</text>
+<rect x="360" y="1205" width="200" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="374" y="1237" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">可回收缓存被驱逐</text>
+<rect x="560" y="1205" width="350" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="574" y="1237" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">物理块再分配</text>
+<rect x="910" y="1205" width="610" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="924" y="1237" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">去掉旧 hash 后才能装入新内容。</text>
+<rect x="56" y="1305" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1344" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  完整块复用、尾 token 重算与写时复制</text>
+<text x="80" y="1381" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">本例按普通完整块命中路径，B 命中 2/3 token。混合模型与新版本可有不同的匹配粒度。</text>
+<text x="80" y="1415" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">Prompt 全部命中 KV 也不意味着 logits 被缓存；常见生成路径仍要处理尾 token 才能预测下一 token。</text>
+<text x="80" y="1449" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">原论文为并行采样讨论共享部分块的 copy-on-write；本例 B 只共享完整块，尾块另分配，不触发 COW。</text>
+<text x="80" y="1483" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">V1 append-only 块表可暂时保存内容重复的物理块；不能假设检测相同后总会立即替换运行中的块表。</text>
+<rect x="56" y="1553" width="1488" height="158" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1592" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">05  节省的是哪一段时间</text>
+<text x="80" y="1629" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">APC 主要省去重复前缀的 Prefill 计算；后续 Decode 仍要读取这段历史 KV。</text>
+<text x="80" y="1663" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">因此 Prefix Cache 不会自动缩短模型上下文，也不会让长上下文 Decode 的显存读取消失。</text>
+<rect x="56" y="1733" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1773" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 活动引用、前缀索引和可回收块 → 10：计算容量并处理内存压力</text>
+<text x="56" y="1833" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/design/prefix_caching/" target="_blank"><text x="56" y="1869" font-size="17" fill="#2563eb">Prefix Caching design</text></a>
+<a href="https://docs.vllm.ai/en/stable/features/automatic_prefix_caching/" target="_blank"><text x="806" y="1869" font-size="17" fill="#2563eb">Automatic Prefix Caching</text></a>
+<a href="https://arxiv.org/html/2309.06180v1" target="_blank"><text x="56" y="1900" font-size="17" fill="#2563eb">PagedAttention paper · §3–5</text></a>
+</svg></section><section class="chapter" id="fig10"><div class="sectionbar"><span>第 10 步</span><a href="10_显存公式与抢占恢复.svg" download>下载本步 SVG ↗</a></div><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2277" viewBox="0 0 1600 2277" role="img" aria-labelledby="title10 desc10"><title id="title10">显存容量：多少历史，多少请求</title><desc id="desc10">先数每 token 的 K/V，再算分块、共享节省与抢占恢复；不把权重当成 KV。。解释每步输入、处理与输出。</desc><defs><marker id="arr10" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="2277" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 10 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">显存容量：多少历史，多少请求</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">先数每 token 的 K/V，再算分块、共享节省与抢占恢复；不把权重当成 KV。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → L、h_kv、d、每元素字节数 s；块大小 b；物理块数量</text>
+<rect x="56" y="284" width="1488" height="260" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  普通 Dense / GQA Transformer 的 KV 公式</text>
+<text x="80" y="360" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">M_token = 2 × L × h_kv × d × s；2 分别代表 K 与 V。</text>
+<text x="80" y="394" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">教学模型 FP16：2×1×2×2×2 = 16 bytes/token；b=2，每物理块跨全部层合计 32 bytes。</text>
+<text x="80" y="428" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">A 在 c=3 时占2块=64 bytes，其中有效 KV 为48 bytes，最后一槽16 bytes 尚未使用。</text>
+<text x="80" y="462" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">A 在 c=4 时仍占2块=64 bytes；EOS 不输入，不会产生第5个 token 的 KV。</text>
+<text x="80" y="496" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">MLA、状态空间、跨层共享等特殊结构需另算；布局、对齐、缓存分组和元数据也占空间。</text>
+<rect x="56" y="566" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="605" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  大模型容量算例：不绑定具体模型型号</text>
+<rect x="80" y="642" width="480" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="674" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">假设</text>
+<rect x="560" y="642" width="470" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="574" y="674" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">计算</text>
+<rect x="1030" y="642" width="490" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1044" y="674" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">结果</text>
+<rect x="80" y="696" width="480" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="728" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">L=32,h_kv=8,d=128,FP16</text>
+<rect x="560" y="696" width="470" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="574" y="728" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">2×32×8×128×2</text>
+<rect x="1030" y="696" width="490" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1044" y="728" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">131072 bytes = 128 KiB/token。</text>
+<rect x="80" y="750" width="480" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="782" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">b=16 token/block</text>
+<rect x="560" y="750" width="470" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="574" y="782" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">16×128 KiB</text>
+<rect x="1030" y="750" width="490" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1044" y="782" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">每块跨全部层 2 MiB。</text>
+<rect x="80" y="804" width="480" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="836" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">可用 KV 预算20 GiB</text>
+<rect x="560" y="804" width="470" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="574" y="836" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">20 GiB ÷ 2 MiB</text>
+<rect x="1030" y="804" width="490" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1044" y="836" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">10240块，共163840 token槽。</text>
+<rect x="80" y="858" width="480" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="890" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">每请求实际驻留4096 token</text>
+<rect x="560" y="858" width="470" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="574" y="890" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">ceil(4096/16)=256块</text>
+<rect x="1030" y="858" width="490" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1044" y="890" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">理想容量40条；尚未预留未来增长。</text>
+<rect x="56" y="958" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="997" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  R2 执行后、释放 A 前，数唯一物理块</text>
+<rect x="80.0" y="1034" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="1066" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">A：4 token</text>
+<text x="98.0" y="1100" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">table=[5,1]</text>
+<text x="98.0" y="1130" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">2 块 / 64 bytes</text>
+<path d="M525.0 1100L572.0 1100" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr10)"/>
+<rect x="580.0" y="1034" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="1066" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">B：3 token</text>
+<text x="598.0" y="1100" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">table=[5,7]</text>
+<text x="598.0" y="1130" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">块5与 A 共享</text>
+<path d="M1025.0 1100L1072.0 1100" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr10)"/>
+<rect x="1080.0" y="1034" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="1066" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">C：2 token</text>
+<text x="1098.0" y="1100" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">table=[3]</text>
+<text x="1098.0" y="1130" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">1 块 / 32 bytes</text>
+<text x="80" y="1232" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">独立块数2+2+1=5；实际唯一物理块 {5,1,7,3}=4，占128 bytes而不是160 bytes。</text>
+<rect x="56" y="1285" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1324" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  GPU 总预算扣除其他开销后，剩下才是 KV</text>
+<text x="80" y="1361" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">概念预算：GPU可用份额 − 权重 − 峰值激活/工作区 − 图与运行时开销 − 其他预留。</text>
+<text x="80" y="1395" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">gpu_memory_utilization 影响实例可用显存预算；还要留意其他进程与峰值所需空间。</text>
+<text x="80" y="1429" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">max_model_len、max_num_seqs 与本轮 token 预算分别约束上下文、序列数与计算量，不能互相替代。</text>
+<text x="80" y="1463" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">底层张量池可能已经预留很大；活动请求只引用部分块。池容量与当前活动占用要分别观察。</text>
+<rect x="56" y="1533" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1572" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">05  缺块时的重算式抢占与恢复</text>
+<rect x="80.0" y="1609" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="1641" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">分配不足</text>
+<text x="98.0" y="1675" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">回收闲置缓存仍不够</text>
+<text x="98.0" y="1705" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">需要暂停某个请求</text>
+<path d="M525.0 1675L572.0 1675" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr10)"/>
+<rect x="580.0" y="1609" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="1641" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">释放请求 KV 引用</text>
+<text x="598.0" y="1675" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">保留已知 token IDs</text>
+<text x="598.0" y="1705" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">请求转为等待恢复</text>
+<path d="M1025.0 1675L1072.0 1675" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr10)"/>
+<rect x="1080.0" y="1609" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="1641" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">稍后重新调度</text>
+<text x="1098.0" y="1675" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">Prompt + 已生成 IDs</text>
+<text x="1098.0" y="1705" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">重建或命中 KV 后继续</text>
+<text x="80" y="1807" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">重算恢复历史状态，不向用户重复发送旧内容；代价是额外计算与等待。</text>
+<rect x="56" y="1860" width="1488" height="158" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1899" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">06  与其他内存路径的关系</text>
+<text x="80" y="1936" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">V1 文档的典型抢占模式是 RECOMPUTE；CPU offload / KV connector 是另外配置和约束的机制。</text>
+<text x="80" y="1970" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">反复抢占通常说明容量或并发配置不适配，应结合 KV 使用、等待队列与请求长度分析。</text>
+<rect x="56" y="2040" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="2080" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 容量与计算成本已知 → 11：减少 GPU 读写和逐轮发射成本</text>
+<text x="56" y="2140" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/configuration/optimization/" target="_blank"><text x="56" y="2176" font-size="17" fill="#2563eb">Optimization and Tuning</text></a>
+<a href="https://arxiv.org/html/2309.06180v1" target="_blank"><text x="806" y="2176" font-size="17" fill="#2563eb">PagedAttention paper · §3–5</text></a>
+<a href="https://docs.vllm.ai/en/stable/features/quantization/quantized_kvcache/" target="_blank"><text x="56" y="2207" font-size="17" fill="#2563eb">Quantized KV Cache</text></a>
+</svg></section><section class="chapter" id="fig11"><div class="sectionbar"><span>第 11 步</span><a href="11_内核FlashAttention与CUDAGraph.svg" download>下载本步 SVG ↗</a></div><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2029" viewBox="0 0 1600 2029" role="img" aria-labelledby="title11 desc11"><title id="title11">执行加速：分页、FlashAttention、编译与图</title><desc id="desc11">这些机制作用于不同成本，可以组合；不要把它们当成同一种优化。。解释每步输入、处理与输出。</desc><defs><marker id="arr11" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="2029" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 11 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">执行加速：分页、FlashAttention、编译与图</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">这些机制作用于不同成本，可以组合；不要把它们当成同一种优化。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → 带块表的 packed batch + 模型权重 + GPU 工作区</text>
+<rect x="56" y="284" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  四类机制分别减少什么</text>
+<rect x="80" y="360" width="330" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">机制</text>
+<rect x="410" y="360" width="600" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="424" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">优化目标</text>
+<rect x="1010" y="360" width="510" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1024" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">边界</text>
+<rect x="80" y="414" width="330" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">Paged KV / PagedAttention</text>
+<rect x="410" y="414" width="600" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="424" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">定位和分配历史 KV，支持共享，减少浪费</text>
+<rect x="1010" y="414" width="510" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1024" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">不自动减少 Dense Attention 要读取的历史。</text>
+<rect x="80" y="468" width="330" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">FlashAttention 类内核</text>
+<rect x="410" y="468" width="600" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="424" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">tiling + 在线 Softmax，避免完整 S/P 的 HBM 往返</text>
+<rect x="1010" y="468" width="510" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1024" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">计算 tile 与 KV 分配块不是同一种块。</text>
+<rect x="80" y="522" width="330" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">融合 / torch.compile</text>
+<rect x="410" y="522" width="600" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="424" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">减少中间张量、Python 调用和小 kernel 成本</text>
+<rect x="1010" y="522" width="510" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1024" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">可融合范围取决于模型、算子与后端。</text>
+<rect x="80" y="576" width="330" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="608" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">CUDA Graph replay</text>
+<rect x="410" y="576" width="600" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="424" y="608" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">减少重复执行路径的 CPU 发射开销</text>
+<rect x="1010" y="576" width="510" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1024" y="608" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">不缓存模型预测；本轮输入与 KV 仍然更新。</text>
+<rect x="56" y="676" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="715" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  本轮执行穿过多层优化</text>
+<rect x="80.0" y="752" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="784" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">输入打包</text>
+<text x="98.0" y="818" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">IDs / positions</text>
+<text x="98.0" y="848" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">slot / block 元数据</text>
+<path d="M400.0 818L447.0 818" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr11)"/>
+<rect x="455.0" y="752" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="473.0" y="784" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">投影与 Norm</text>
+<text x="473.0" y="818" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">Linear 矩阵乘法</text>
+<text x="473.0" y="848" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">可融合的执行子图</text>
+<path d="M775.0 818L822.0 818" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr11)"/>
+<rect x="830.0" y="752" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="848.0" y="784" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Attention 后端</text>
+<text x="848.0" y="818" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">直接读取 paged KV</text>
+<text x="848.0" y="848" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">分块 QK / Softmax / AV</text>
+<path d="M1150.0 818L1197.0 818" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr11)"/>
+<rect x="1205.0" y="752" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1223.0" y="784" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">FFN 与输出</text>
+<text x="1223.0" y="818" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">SwiGLU / Linear</text>
+<text x="1223.0" y="848" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">logits 与采样</text>
+<text x="80" y="950" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">CUDA Graph 可覆盖适用的整个执行段或子段；不兼容部分采用其他执行路径。</text>
+<rect x="56" y="1003" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1042" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  Prefill 与 Decode 为什么受益不同</text>
+<text x="80" y="1079" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">Prefill 的 Q 有很多行，通常更容易利用大矩阵计算；避免 N×N 中间 S/P 全量落显存尤其有价值。</text>
+<text x="80" y="1113" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">Decode 每请求通常只有1个 Q 行；上下文越长，扫描 KV 的带宽与并行度越关键。</text>
+<text x="80" y="1147" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">小 batch 或单轮 GPU 很快时，CPU 调度、输入准备和多次 kernel 发射也会成为明显成本。</text>
+<text x="80" y="1181" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">Prefill偏计算、Decode偏带宽是常见趋势，实际仍由模型、batch、上下文和硬件共同决定。</text>
+<rect x="56" y="1251" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1290" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  CUDA Graph 不是把第一次输出拿来复用</text>
+<rect x="80.0" y="1327" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="1359" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">预热 / 捕获</text>
+<text x="98.0" y="1393" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">准备适用形状和路径</text>
+<text x="98.0" y="1423" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">保持稳定的缓冲区</text>
+<path d="M525.0 1393L572.0 1393" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr11)"/>
+<rect x="580.0" y="1327" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="1359" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">每轮更新输入</text>
+<text x="598.0" y="1393" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">填入新 IDs / positions</text>
+<text x="598.0" y="1423" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">更新 slot 与元数据</text>
+<path d="M1025.0 1393L1072.0 1393" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr11)"/>
+<rect x="1080.0" y="1327" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="1359" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">分派与重放</text>
+<text x="1098.0" y="1393" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">选兼容形状桶 / 图</text>
+<text x="1098.0" y="1423" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">不匹配时切换路径</text>
+<text x="80" y="1525" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">形状桶 / padding 可提高复用率，也可能增加额外计算；捕获还需要启动时间和图内存。</text>
+<rect x="56" y="1578" width="1488" height="192" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1617" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">05  原内核文档与现行 vLLM 的关系</text>
+<text x="80" y="1654" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">官方 Paged Attention 页面描述一个特定单 Query 内核；现行 vLLM 按模型与硬件选择兼容后端。</text>
+<text x="80" y="1688" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">各后端支持的分页布局、head size、dtype、混合 batch 与 CUDA Graph 路径并不完全相同。</text>
+<text x="80" y="1722" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">本图解释寻址和计算原理，不假定每张显卡都使用同一份历史 CUDA 内核。</text>
+<rect x="56" y="1792" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1832" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 单 Worker 的高效执行 → 12：扩展到多个 GPU</text>
+<text x="56" y="1892" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://arxiv.org/abs/2205.14135" target="_blank"><text x="56" y="1928" font-size="17" fill="#2563eb">FlashAttention paper (2022)</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/torch_compile/" target="_blank"><text x="806" y="1928" font-size="17" fill="#2563eb">torch.compile integration</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/cuda_graphs/" target="_blank"><text x="56" y="1959" font-size="17" fill="#2563eb">CUDA Graphs</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/paged_attention/" target="_blank"><text x="806" y="1959" font-size="17" fill="#2563eb">Paged Attention kernel</text></a>
+</svg></section><section class="chapter" id="fig12"><div class="sectionbar"><span>第 12 步</span><a href="12_多GPU并行与通信.svg" download>下载本步 SVG ↗</a></div><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2074" viewBox="0 0 1600 2074" role="img" aria-labelledby="title12 desc12"><title id="title12">多 GPU：切权重、切层，还是复制模型</title><desc id="desc12">模型并行让一条请求跨设备执行；数据并行把不同请求交给不同实例。。解释每步输入、处理与输出。</desc><defs><marker id="arr12" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="2074" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 12 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">多 GPU：切权重、切层，还是复制模型</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">模型并行让一条请求跨设备执行；数据并行把不同请求交给不同实例。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → 权重单卡装不下，或需要更高的服务吞吐</text>
+<rect x="56" y="284" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  TP：同一层的矩阵切到多张 GPU</text>
+<rect x="80.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">共同输入 H [N,D]</text>
+<text x="98.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">同一批请求的隐藏状态</text>
+<text x="98.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">按需要广播或保持副本</text>
+<path d="M525.0 426L572.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr12)"/>
+<rect x="580.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">GPU0 / GPU1 分片</text>
+<text x="598.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">投影 / FFN 分别计算</text>
+<text x="598.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">得到局部中间结果</text>
+<path d="M1025.0 426L1072.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr12)"/>
+<rect x="1080.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">组合分片结果</text>
+<text x="1098.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">典型行并行 Y=Σ H_rW_r</text>
+<text x="1098.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">需要 collective 通信</text>
+<text x="80" y="558" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">KV 可按 heads 分片；KV head 数与 TP 不匹配时可复制，不能一律把 KV 容量直接除以 TP。</text>
+<rect x="56" y="611" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="650" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  PP：不同层放到不同 GPU，传递隐藏状态</text>
+<rect x="80.0" y="687" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="719" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">GPU0：层0…15</text>
+<text x="98.0" y="753" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">处理上半段网络</text>
+<text x="98.0" y="783" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">本地保存这些层的 KV</text>
+<path d="M525.0 753L572.0 753" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr12)"/>
+<rect x="580.0" y="687" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="719" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">GPU1：层16…31</text>
+<text x="598.0" y="753" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">接收隐藏状态</text>
+<text x="598.0" y="783" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">保存后续层 KV 并计算</text>
+<path d="M1025.0 753L1072.0 753" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr12)"/>
+<rect x="1080.0" y="687" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="719" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">输出阶段</text>
+<text x="1098.0" y="753" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">完成最后归一化与输出</text>
+<text x="1098.0" y="783" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">向调度器返回结果</text>
+<text x="80" y="885" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">单请求仍穿过多个阶段；通信延迟、流水空泡与微批大小会影响效率。</text>
+<rect x="56" y="938" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="977" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  DP：复制模型组，分流不同请求</text>
+<rect x="80.0" y="1014" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="1046" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">请求路由</text>
+<text x="98.0" y="1080" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">A / B / C 到达</text>
+<text x="98.0" y="1110" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">观察队列和负载</text>
+<path d="M525.0 1080L572.0 1080" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr12)"/>
+<rect x="580.0" y="1014" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="1046" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">DP rank0</text>
+<text x="598.0" y="1080" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">一套模型或 TP 组</text>
+<text x="598.0" y="1110" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">本地 EngineCore / KV</text>
+<path d="M1025.0 1080L1072.0 1080" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr12)"/>
+<rect x="1080.0" y="1014" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="1046" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">DP rank1</text>
+<text x="1098.0" y="1080" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">另一套模型或 TP 组</text>
+<text x="1098.0" y="1110" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">处理另一批请求</text>
+<text x="80" y="1212" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">本地 APC 通常属于各自副本；把 B 发到没有 A 前缀的实例可能错失命中。</text>
+<rect x="56" y="1265" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1304" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  需求与代价要一起看</text>
+<rect x="80" y="1341" width="380" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="1373" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">需求</text>
+<rect x="460" y="1341" width="510" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="474" y="1373" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">常见方向</text>
+<rect x="970" y="1341" width="550" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="984" y="1373" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">要核对</text>
+<rect x="80" y="1395" width="380" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1427" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">单卡放不下权重</text>
+<rect x="460" y="1395" width="510" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="474" y="1427" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">TP / PP 与权重量化</text>
+<rect x="970" y="1395" width="550" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="984" y="1427" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">互联、层结构、切分粒度、实际内存。</text>
+<rect x="80" y="1449" width="380" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1481" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">模型单卡能装下，扩吞吐</text>
+<rect x="460" y="1449" width="510" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="474" y="1481" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">增加 DP 副本并合理路由</text>
+<rect x="970" y="1449" width="550" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="984" y="1481" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">权重复制与局部前缀命中变化。</text>
+<rect x="80" y="1503" width="380" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1535" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">MoE 专家层</text>
+<rect x="460" y="1503" width="510" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="474" y="1535" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">EP 将专家分布到设备</text>
+<rect x="970" y="1503" width="550" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="984" y="1535" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">token 路由与 all-to-all，不等于 Dense TP。</text>
+<rect x="80" y="1557" width="380" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1589" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">DP2 × TP2 × PP1</text>
+<rect x="460" y="1557" width="510" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="474" y="1589" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">示意需要4个 GPU Worker</text>
+<rect x="970" y="1557" width="550" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="984" y="1589" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">每个 DP 副本拥有自己的引擎与 TP 组。</text>
+<rect x="56" y="1657" width="1488" height="158" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1696" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">05  回到请求 A 的块表</text>
+<text x="80" y="1733" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">各 Worker 保存属于自己的权重和 KV 分片；同一请求需要并行组内协同，而不是任意一张卡单独完成。</text>
+<text x="80" y="1767" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">本教程 D=4、h=2 只是尺寸教学例子，不声称可直接部署成生产级多 GPU 模型。</text>
+<rect x="56" y="1837" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1877" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 多卡执行组与通信代价 → 13：比较其他可选优化</text>
+<text x="56" y="1937" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/serving/parallelism_scaling/" target="_blank"><text x="56" y="1973" font-size="17" fill="#2563eb">Parallelism and Scaling</text></a>
+<a href="https://docs.vllm.ai/en/stable/configuration/optimization/" target="_blank"><text x="806" y="1973" font-size="17" fill="#2563eb">Optimization and Tuning</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/arch_overview/" target="_blank"><text x="56" y="2004" font-size="17" fill="#2563eb">Architecture Overview</text></a>
+</svg></section><section class="chapter" id="fig13"><div class="sectionbar"><span>第 13 步</span><a href="13_量化投机与PD分离.svg" download>下载本步 SVG ↗</a></div><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2039" viewBox="0 0 1600 2039" role="img" aria-labelledby="title13 desc13"><title id="title13">进阶优化：精度、生成轮次与 P/D 分离</title><desc id="desc13">沿同一请求链说明收益从何而来，并给出额外计算、内存或传输成本。。解释每步输入、处理与输出。</desc><defs><marker id="arr13" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="2039" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 13 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">进阶优化：精度、生成轮次与 P/D 分离</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">沿同一请求链说明收益从何而来，并给出额外计算、内存或传输成本。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → 已知权重、KV、执行与调度成本，继续寻找容量和延迟改进</text>
+<rect x="56" y="284" width="1488" height="346" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  权重量化和 KV 量化，压缩的不是同一对象</text>
+<rect x="80" y="360" width="300" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">对象</text>
+<rect x="380" y="360" width="670" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="394" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">改变什么</text>
+<rect x="1050" y="360" width="470" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1064" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">边界</text>
+<rect x="80" y="414" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">权重量化</text>
+<rect x="380" y="414" width="670" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">压缩权重，使用兼容量化 GEMM / 反量化路径</text>
+<rect x="1050" y="414" width="470" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1064" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">不能直接等同 KV 容量减半。</text>
+<rect x="80" y="468" width="300" height="84" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">KV 量化</text>
+<rect x="380" y="468" width="670" height="84" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="394" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">用低精度保存 K/V，附带需要的缩放信息</text>
+<rect x="1050" y="468" width="470" height="84" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1064" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">2 bytes→1 byte 时数据部分约减半，还需 s</text>
+<text x="1064" y="530" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">cale/对齐。</text>
+<rect x="80" y="552" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="584" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">输出与速度</text>
+<rect x="380" y="552" width="670" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="584" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">精度、缩放策略和内核支持决定效果</text>
+<rect x="1050" y="552" width="470" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1064" y="584" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">近似存储可能影响输出；不承诺固定加速倍数。</text>
+<rect x="56" y="652" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="691" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  投机生成：先提出多个候选，再由目标模型验证</text>
+<rect x="80.0" y="728" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="760" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Draft / 提议器</text>
+<text x="98.0" y="794" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">提出 [t1,t2,t3]</text>
+<text x="98.0" y="824" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">成本要足够低</text>
+<path d="M525.0 794L572.0 794" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr13)"/>
+<rect x="580.0" y="728" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="760" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Target / 验证</text>
+<text x="598.0" y="794" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">一次前向检查多个位置</text>
+<text x="598.0" y="824" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">得到目标模型分布</text>
+<path d="M1025.0 794L1072.0 794" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr13)"/>
+<rect x="1080.0" y="728" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="760" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">接受与修正</text>
+<text x="1098.0" y="794" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">接受连续合法候选</text>
+<text x="1098.0" y="824" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">更新输出、进度与 KV</text>
+<text x="80" y="926" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">A 的 [鱼,EOS] 主线未启用投机；t1/t2/t3 仅为解释机制的符号。</text>
+<rect x="56" y="979" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1018" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  正确性与收益条件</text>
+<text x="80" y="1055" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">贪心验证可比对目标选择；随机采样需正确的接受/拒绝与修正采样，不能只比 argmax。</text>
+<text x="80" y="1089" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">正确投机算法可保持目标分布，但不同精度与 kernel 的细小数值差异仍需按实现评估。</text>
+<text x="80" y="1123" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">被拒绝候选的后续状态必须回收或覆盖，调度也可能需要额外 lookahead 空间。</text>
+<text x="80" y="1157" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">接受率低、batch 已饱和或提议器昂贵时，额外工作可能抵消少调用几轮的收益。</text>
+<rect x="56" y="1227" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1266" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  Prefill / Decode 分离：在两组设备交接状态</text>
+<rect x="80.0" y="1303" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="1335" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Prefill 池 P</text>
+<text x="98.0" y="1369" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">处理 Prompt 并产生 KV</text>
+<text x="98.0" y="1399" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">准备必要的首 token 状态</text>
+<path d="M525.0 1369L572.0 1369" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr13)"/>
+<rect x="580.0" y="1303" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="1335" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">KV Connector</text>
+<text x="598.0" y="1369" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">传输与布局交接</text>
+<text x="598.0" y="1399" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">源块 ID 不等于目标块 ID</text>
+<path d="M1025.0 1369L1072.0 1369" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr13)"/>
+<rect x="1080.0" y="1303" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="1335" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Decode 池 D</text>
+<text x="1098.0" y="1369" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">目标侧分配自己的槽位</text>
+<text x="1098.0" y="1399" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">取得状态后继续生成</text>
+<text x="80" y="1501" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">传输有效 KV 量约 N×2Lh_kvds；首 token 在哪侧采样、怎样交接取决于实现。</text>
+<rect x="56" y="1554" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1593" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">05  为什么分离也有成本</text>
+<text x="80" y="1630" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">P/D 需保持一致的 token 位置和模型状态语义；分离不是把块表整数发给另一张 GPU 就完成。</text>
+<text x="80" y="1664" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">A 仅3-token Prompt，图只展示交接；网络、同步和传输可能比它的计算还昂贵。</text>
+<text x="80" y="1698" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">长 Prompt 与长 Decode 混合时可分别扩容、降低相互干扰；收益需要覆盖 KV 搬运成本。</text>
+<text x="80" y="1732" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">官方将 P/D 功能标为实验性质；需匹配 connector、设备和布局，不是所有配置都会更快。</text>
+<rect x="56" y="1802" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1842" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 各机制的收益与额外成本 → 14：用完整链路指标检验</text>
+<text x="56" y="1902" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/features/quantization/quantized_kvcache/" target="_blank"><text x="56" y="1938" font-size="17" fill="#2563eb">Quantized KV Cache</text></a>
+<a href="https://docs.vllm.ai/en/stable/features/speculative_decoding/" target="_blank"><text x="806" y="1938" font-size="17" fill="#2563eb">Speculative Decoding</text></a>
+<a href="https://arxiv.org/abs/2211.17192" target="_blank"><text x="56" y="1969" font-size="17" fill="#2563eb">Speculative Decoding paper</text></a>
+<a href="https://docs.vllm.ai/en/stable/features/disagg_prefill/" target="_blank"><text x="806" y="1969" font-size="17" fill="#2563eb">Disaggregated Prefilling</text></a>
+</svg></section><section class="chapter" id="fig14"><div class="sectionbar"><span>第 14 步</span><a href="14_性能指标与全链路回顾.svg" download>下载本步 SVG ↗</a></div><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2295" viewBox="0 0 1600 2295" role="img" aria-labelledby="title14 desc14"><title id="title14">闭合整条链：怎么知道优化有效</title><desc id="desc14">把等待、首 token、逐 token 和完成时间连起来，理解吞吐与延迟的取舍。。解释每步输入、处理与输出。</desc><defs><marker id="arr14" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="2295" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 14 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">闭合整条链：怎么知道优化有效</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">把等待、首 token、逐 token 和完成时间连起来，理解吞吐与延迟的取舍。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → 从 API 到调度、KV、执行、返回的完整请求链与观测</text>
+<rect x="56" y="284" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  同一请求的时间轴，测量边界要一致</text>
+<rect x="80.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">到达与排队</text>
+<text x="98.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">模板 / tokenization</text>
+<text x="98.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">等待预算和 KV 空间</text>
+<path d="M400.0 426L447.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr14)"/>
+<rect x="455.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="473.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">首轮执行</text>
+<text x="473.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">Prefix 命中 / Prefill</text>
+<text x="473.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">采样第一个 token</text>
+<path d="M775.0 426L822.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr14)"/>
+<rect x="830.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="848.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">循环 Decode</text>
+<text x="848.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">每轮调度与 KV 访问</text>
+<text x="848.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">生成后续 token</text>
+<path d="M1150.0 426L1197.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr14)"/>
+<rect x="1205.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1223.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">输出与结束</text>
+<text x="1223.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">反分词 / 网络发送</text>
+<text x="1223.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">EOS 或其他停止条件</text>
+<text x="80" y="558" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">客户端端到端、服务器处理和 GPU kernel 时间是不同观测，不能直接互相替代。</text>
+<rect x="56" y="611" width="1488" height="454" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="650" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  指标、含义和对应机制</text>
+<rect x="80" y="687" width="290" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="719" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">指标</text>
+<rect x="370" y="687" width="620" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="384" y="719" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">含义</text>
+<rect x="990" y="687" width="530" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1004" y="719" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">关联路径</text>
+<rect x="80" y="741" width="290" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="773" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">TTFT</text>
+<rect x="370" y="741" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="384" y="773" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">首个输出 token 时间 − 请求到达时间</text>
+<rect x="990" y="741" width="530" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1004" y="773" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">排队、输入处理、缓存命中、Prefill、传输。</text>
+<rect x="80" y="795" width="290" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="827" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">ITL / TPOT</text>
+<rect x="370" y="795" width="620" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="384" y="827" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">token 间隔 / 每输出 token 时间；按基准定义统计</text>
+<rect x="990" y="795" width="530" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1004" y="827" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">Decode 调度、混合轮长度、带宽和发射成本。</text>
+<rect x="80" y="849" width="290" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="881" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">端到端延迟</text>
+<rect x="370" y="849" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="384" y="881" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">完成时间 − 到达时间</text>
+<rect x="990" y="849" width="530" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1004" y="881" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">TTFT + 后续生成 + 输出处理；观察分位数。</text>
+<rect x="80" y="903" width="290" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="935" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">吞吐 / goodput</text>
+<rect x="370" y="903" width="620" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="384" y="935" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">单位时间的请求或 token；goodput 加上延迟约束</text>
+<rect x="990" y="903" width="530" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1004" y="935" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">batching、容量、并行；区分输入/输出计数口径。</text>
+<rect x="80" y="957" width="290" height="84" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="989" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">KV / cache / preemptio</text>
+<text x="94" y="1019" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">n</text>
+<rect x="370" y="957" width="620" height="84" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="384" y="989" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">块占用、命中 token 和抢占次数</text>
+<rect x="990" y="957" width="530" height="84" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1004" y="989" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">排查容量、低命中与反复重算。</text>
+<rect x="56" y="1087" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1126" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  看到现象后，沿数据流找原因</text>
+<rect x="80" y="1163" width="300" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="1195" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">现象</text>
+<rect x="380" y="1163" width="620" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="394" y="1195" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">先拆解什么</text>
+<rect x="1000" y="1163" width="520" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1014" y="1195" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">比较什么</text>
+<rect x="80" y="1217" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1249" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">TTFT 高</text>
+<rect x="380" y="1217" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="1249" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">排队久，还是长 Prompt 计算久？</text>
+<rect x="1000" y="1217" width="520" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1014" y="1249" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">相同负载下，前缀命中与 token 预算。</text>
+<rect x="80" y="1271" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1303" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">流式输出抖动</text>
+<rect x="380" y="1271" width="620" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="394" y="1303" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">长 Prefill、CPU 或网络是否积压？</text>
+<rect x="1000" y="1271" width="520" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1014" y="1303" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">ITL 分位数与混合 batch / chunk 大小。</text>
+<rect x="80" y="1325" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1357" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">频繁抢占</text>
+<rect x="380" y="1325" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="1357" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">上下文、并发、权重和图占用？</text>
+<rect x="1000" y="1325" width="520" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1014" y="1357" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">相同输入分布下，容量与并发上限。</text>
+<rect x="80" y="1379" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1411" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">GPU 不忙但延迟高</text>
+<rect x="380" y="1379" width="620" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="394" y="1411" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">输入、调度、发射或跨卡通信？</text>
+<rect x="1000" y="1379" width="520" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1014" y="1411" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">CPU/GPU profile，不直接盲目加大 batch。</text>
+<rect x="56" y="1479" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1518" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  本教程已验证什么</text>
+<text x="80" y="1555" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">数值验证：五轮输入来源、进度 c、预算、块地址、完整前缀复用、活动引用和 EOS 无额外 KV。</text>
+<text x="80" y="1589" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">分页读取与在线 Softmax 合并，数值对齐既有模型的连续 Attention；完整精度数据保存在 _data。</text>
+<text x="80" y="1623" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">未运行实际 vLLM / GPU 基准，因此不提供虚构的 tokens/s、毫秒耗时或加速倍数。</text>
+<text x="80" y="1657" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">真实测评需固定模型、版本、硬件、精度、输入/输出长度分布、到达率和并发，比较 p50/p95/p99。</text>
+<rect x="56" y="1727" width="1488" height="340" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1766" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">05  再完整走一次 A：所有部分处在同一条连续链</text>
+<text x="80" y="1803" font-size="23" fill="#14243b" font-weight="400" text-anchor="start">“小猫喜欢吃” → Tokenizer [11,10,7] → 请求 A / c=0</text>
+<text x="80" y="1843" font-size="23" fill="#14243b" font-weight="400" text-anchor="start">R1 {A:3} → table=[5,1] → slots=[10,11,2] → Prefill 逐层写 KV</text>
+<text x="80" y="1883" font-size="23" fill="#14243b" font-weight="400" text-anchor="start">尾部 logits → ID8“鱼” → 流式返回；此时 c=3，known_ids 长度=4</text>
+<text x="80" y="1923" font-size="23" fill="#14243b" font-weight="400" text-anchor="start">R2 混合 A/B/C → A 输入8 / p3 / slot3 → 依块5、块1读4-token上下文</text>
+<text x="80" y="1963" font-size="23" fill="#14243b" font-weight="400" text-anchor="start">Attention → 残差 / FFN / 输出头 → EOS → A完成 → 释放块引用</text>
+<text x="80" y="2003" font-size="23" fill="#14243b" font-weight="400" text-anchor="start">块5因 B仍引用而保留 → B结束后可回收或缓存 → 服务继续接收请求</text>
+<rect x="56" y="2089" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="2129" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 回看各章，或用网页的五轮调度播放器逐项检查输入与状态</text>
+<text x="56" y="2189" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/usage/metrics/" target="_blank"><text x="56" y="2225" font-size="17" fill="#2563eb">Production Metrics</text></a>
+<a href="https://docs.vllm.ai/en/stable/configuration/optimization/" target="_blank"><text x="806" y="2225" font-size="17" fill="#2563eb">Optimization and Tuning</text></a>
+</svg></section>
+<div class="sources" id="references"><h2>官方文档、论文与适用范围</h2><p>以V1主线为准。2023论文、2025架构博客与现行文档提供不同层次的说明；类、配置默认值和后端支持随版本变化。源码用固定v0.30.0标签作可查阅样本，不声称它是最新版本。</p><ol><li><a href="https://docs.vllm.ai/en/stable/design/arch_overview/" target="_blank" rel="noreferrer">Architecture Overview</a></li><li><a href="https://vllm.ai/blog/2025-01-27-v1-alpha-release" target="_blank" rel="noreferrer">V1 architecture blog (2025)</a></li><li><a href="https://arxiv.org/html/2309.06180v1" target="_blank" rel="noreferrer">PagedAttention paper · §3–5</a></li><li><a href="https://docs.vllm.ai/en/stable/design/paged_attention/" target="_blank" rel="noreferrer">Paged Attention kernel</a></li><li><a href="https://docs.vllm.ai/en/stable/design/prefix_caching/" target="_blank" rel="noreferrer">Prefix Caching design</a></li><li><a href="https://docs.vllm.ai/en/stable/features/automatic_prefix_caching/" target="_blank" rel="noreferrer">Automatic Prefix Caching</a></li><li><a href="https://docs.vllm.ai/en/stable/configuration/optimization/" target="_blank" rel="noreferrer">Optimization and Tuning</a></li><li><a href="https://github.com/vllm-project/vllm/blob/v0.30.0/vllm/v1/core/sched/scheduler.py" target="_blank" rel="noreferrer">v0.30.0 · scheduler.py</a></li><li><a href="https://docs.vllm.ai/en/stable/design/cuda_graphs/" target="_blank" rel="noreferrer">CUDA Graphs</a></li><li><a href="https://docs.vllm.ai/en/stable/design/torch_compile/" target="_blank" rel="noreferrer">torch.compile integration</a></li><li><a href="https://arxiv.org/abs/2205.14135" target="_blank" rel="noreferrer">FlashAttention paper (2022)</a></li><li><a href="https://docs.vllm.ai/en/stable/serving/parallelism_scaling/" target="_blank" rel="noreferrer">Parallelism and Scaling</a></li><li><a href="https://docs.vllm.ai/en/stable/features/quantization/quantized_kvcache/" target="_blank" rel="noreferrer">Quantized KV Cache</a></li><li><a href="https://docs.vllm.ai/en/stable/features/speculative_decoding/" target="_blank" rel="noreferrer">Speculative Decoding</a></li><li><a href="https://arxiv.org/abs/2211.17192" target="_blank" rel="noreferrer">Speculative Decoding paper</a></li><li><a href="https://docs.vllm.ai/en/stable/features/disagg_prefill/" target="_blank" rel="noreferrer">Disaggregated Prefilling</a></li><li><a href="https://docs.vllm.ai/en/stable/usage/metrics/" target="_blank" rel="noreferrer">Production Metrics</a></li></ol></div>
+<footer>原创SVG / Python构建器 / JSON全精度案例；数值和版面检查见_qa。</footer></main><script>const trace=[{"round": 1, "arrivals": [{"request": "A", "cached": 0, "blocks": []}], "schedule": {"A": 3}, "entries": [{"request": "A", "count": 3, "start": 0, "end": 3, "input_ids": [11, 10, 7], "positions": [0, 1, 2], "slots": [10, 11, 2], "blocks": [5, 1], "output": 8, "finished": false}], "input_ids": [11, 10, 7], "positions": [0, 1, 2], "slot_mapping": [10, 11, 2], "query_start_loc": [0, 3], "pool_before_release": {"5": {"tokens": [11, 10], "ref": 1, "hash": "986892150e66df72bba661be9ce3b499bdae350eff9361c172dad56450f28672"}, "1": {"tokens": [7], "ref": 1, "hash": null}, "7": {"tokens": [], "ref": 0, "hash": null}, "3": {"tokens": [], "ref": 0, "hash": null}, "0": {"tokens": [], "ref": 0, "hash": null}, "6": {"tokens": [], "ref": 0, "hash": null}, "2": {"tokens": [], "ref": 0, "hash": null}, "4": {"tokens": [], "ref": 0, "hash": null}, "8": {"tokens": [], "ref": 0, "hash": null}, "9": {"tokens": [], "ref": 0, "hash": null}, "10": {"tokens": [], "ref": 0, "hash": null}, "11": {"tokens": [], "ref": 0, "hash": null}}, "states": {"A": {"ids": [11, 10, 7, 8], "computed": 3, "blocks": [5, 1], "outputs": [8], "finished": false, "hit": 0}}}, {"round": 2, "arrivals": [{"request": "B", "cached": 2, "blocks": [5]}, {"request": "C", "cached": 0, "blocks": []}], "schedule": {"A": 1, "B": 1, "C": 2}, "entries": [{"request": "A", "count": 1, "start": 3, "end": 4, "input_ids": [8], "positions": [3], "slots": [3], "blocks": [5, 1], "output": 1, "finished": true}, {"request": "B", "count": 1, "start": 2, "end": 3, "input_ids": [7], "positions": [2], "slots": [14], "blocks": [5, 7], "output": 8, "finished": false}, {"request": "C", "count": 2, "start": 0, "end": 2, "input_ids": [10, 7], "positions": [0, 1], "slots": [6, 7], "blocks": [3], "output": null, "finished": false}], "input_ids": [8, 7, 10, 7], "positions": [3, 2, 0, 1], "slot_mapping": [3, 14, 6, 7], "query_start_loc": [0, 1, 2, 4], "pool_before_release": {"5": {"tokens": [11, 10], "ref": 2, "hash": "986892150e66df72bba661be9ce3b499bdae350eff9361c172dad56450f28672"}, "1": {"tokens": [7, 8], "ref": 1, "hash": "6cfbdbaa224751ac3a1b36f3e81fd8419d0c0b493dcfcc07e70e3478b167746d"}, "7": {"tokens": [7], "ref": 1, "hash": null}, "3": {"tokens": [10, 7], "ref": 1, "hash": "66970e0c4e334995e8f9721bfa797d4323784a31681b2ddcba0f72270bb75749"}, "0": {"tokens": [], "ref": 0, "hash": null}, "6": {"tokens": [], "ref": 0, "hash": null}, "2": {"tokens": [], "ref": 0, "hash": null}, "4": {"tokens": [], "ref": 0, "hash": null}, "8": {"tokens": [], "ref": 0, "hash": null}, "9": {"tokens": [], "ref": 0, "hash": null}, "10": {"tokens": [], "ref": 0, "hash": null}, "11": {"tokens": [], "ref": 0, "hash": null}}, "states": {"A": {"ids": [11, 10, 7, 8], "computed": 4, "blocks": [5, 1], "outputs": [8, 1], "finished": true, "hit": 0}, "B": {"ids": [11, 10, 7, 8], "computed": 3, "blocks": [5, 7], "outputs": [8], "finished": false, "hit": 2}, "C": {"ids": [10, 7, 8, 11, 10, 7, 8], "computed": 2, "blocks": [3], "outputs": [], "finished": false, "hit": 0}}}, {"round": 3, "arrivals": [], "schedule": {"B": 1, "C": 3}, "entries": [{"request": "B", "count": 1, "start": 3, "end": 4, "input_ids": [8], "positions": [3], "slots": [15], "blocks": [5, 7], "output": 1, "finished": true}, {"request": "C", "count": 3, "start": 2, "end": 5, "input_ids": [8, 11, 10], "positions": [2, 3, 4], "slots": [0, 1, 12], "blocks": [3, 0, 6], "output": null, "finished": false}], "input_ids": [8, 8, 11, 10], "positions": [3, 2, 3, 4], "slot_mapping": [15, 0, 1, 12], "query_start_loc": [0, 1, 4], "pool_before_release": {"5": {"tokens": [11, 10], "ref": 1, "hash": "986892150e66df72bba661be9ce3b499bdae350eff9361c172dad56450f28672"}, "1": {"tokens": [7, 8], "ref": 0, "hash": "6cfbdbaa224751ac3a1b36f3e81fd8419d0c0b493dcfcc07e70e3478b167746d"}, "7": {"tokens": [7, 8], "ref": 1, "hash": "6cfbdbaa224751ac3a1b36f3e81fd8419d0c0b493dcfcc07e70e3478b167746d"}, "3": {"tokens": [10, 7], "ref": 1, "hash": "66970e0c4e334995e8f9721bfa797d4323784a31681b2ddcba0f72270bb75749"}, "0": {"tokens": [8, 11], "ref": 1, "hash": "6bbaa58cddaa743113a8a6388c924629d3f1d6b03fc41d0281921ce1becf16ca"}, "6": {"tokens": [10], "ref": 1, "hash": null}, "2": {"tokens": [], "ref": 0, "hash": null}, "4": {"tokens": [], "ref": 0, "hash": null}, "8": {"tokens": [], "ref": 0, "hash": null}, "9": {"tokens": [], "ref": 0, "hash": null}, "10": {"tokens": [], "ref": 0, "hash": null}, "11": {"tokens": [], "ref": 0, "hash": null}}, "states": {"A": {"ids": [11, 10, 7, 8], "computed": 4, "blocks": [5, 1], "outputs": [8, 1], "finished": true, "hit": 0}, "B": {"ids": [11, 10, 7, 8], "computed": 4, "blocks": [5, 7], "outputs": [8, 1], "finished": true, "hit": 2}, "C": {"ids": [10, 7, 8, 11, 10, 7, 8], "computed": 5, "blocks": [3, 0, 6], "outputs": [], "finished": false, "hit": 0}}}, {"round": 4, "arrivals": [], "schedule": {"C": 2}, "entries": [{"request": "C", "count": 2, "start": 5, "end": 7, "input_ids": [7, 8], "positions": [5, 6], "slots": [13, 4], "blocks": [3, 0, 6, 2], "output": 10, "finished": false}], "input_ids": [7, 8], "positions": [5, 6], "slot_mapping": [13, 4], "query_start_loc": [0, 2], "pool_before_release": {"5": {"tokens": [11, 10], "ref": 0, "hash": "986892150e66df72bba661be9ce3b499bdae350eff9361c172dad56450f28672"}, "1": {"tokens": [7, 8], "ref": 0, "hash": "6cfbdbaa224751ac3a1b36f3e81fd8419d0c0b493dcfcc07e70e3478b167746d"}, "7": {"tokens": [7, 8], "ref": 0, "hash": "6cfbdbaa224751ac3a1b36f3e81fd8419d0c0b493dcfcc07e70e3478b167746d"}, "3": {"tokens": [10, 7], "ref": 1, "hash": "66970e0c4e334995e8f9721bfa797d4323784a31681b2ddcba0f72270bb75749"}, "0": {"tokens": [8, 11], "ref": 1, "hash": "6bbaa58cddaa743113a8a6388c924629d3f1d6b03fc41d0281921ce1becf16ca"}, "6": {"tokens": [10, 7], "ref": 1, "hash": "e18dae0115bc9740b3fe717ad22398734ab025dc774e5759f4f69ba7631956cd"}, "2": {"tokens": [8], "ref": 1, "hash": null}, "4": {"tokens": [], "ref": 0, "hash": null}, "8": {"tokens": [], "ref": 0, "hash": null}, "9": {"tokens": [], "ref": 0, "hash": null}, "10": {"tokens": [], "ref": 0, "hash": null}, "11": {"tokens": [], "ref": 0, "hash": null}}, "states": {"A": {"ids": [11, 10, 7, 8], "computed": 4, "blocks": [5, 1], "outputs": [8, 1], "finished": true, "hit": 0}, "B": {"ids": [11, 10, 7, 8], "computed": 4, "blocks": [5, 7], "outputs": [8, 1], "finished": true, "hit": 2}, "C": {"ids": [10, 7, 8, 11, 10, 7, 8, 10], "computed": 7, "blocks": [3, 0, 6, 2], "outputs": [10], "finished": false, "hit": 0}}}, {"round": 5, "arrivals": [], "schedule": {"C": 1}, "entries": [{"request": "C", "count": 1, "start": 7, "end": 8, "input_ids": [10], "positions": [7], "slots": [5], "blocks": [3, 0, 6, 2], "output": 1, "finished": true}], "input_ids": [10], "positions": [7], "slot_mapping": [5], "query_start_loc": [0, 1], "pool_before_release": {"5": {"tokens": [11, 10], "ref": 0, "hash": "986892150e66df72bba661be9ce3b499bdae350eff9361c172dad56450f28672"}, "1": {"tokens": [7, 8], "ref": 0, "hash": "6cfbdbaa224751ac3a1b36f3e81fd8419d0c0b493dcfcc07e70e3478b167746d"}, "7": {"tokens": [7, 8], "ref": 0, "hash": "6cfbdbaa224751ac3a1b36f3e81fd8419d0c0b493dcfcc07e70e3478b167746d"}, "3": {"tokens": [10, 7], "ref": 1, "hash": "66970e0c4e334995e8f9721bfa797d4323784a31681b2ddcba0f72270bb75749"}, "0": {"tokens": [8, 11], "ref": 1, "hash": "6bbaa58cddaa743113a8a6388c924629d3f1d6b03fc41d0281921ce1becf16ca"}, "6": {"tokens": [10, 7], "ref": 1, "hash": "e18dae0115bc9740b3fe717ad22398734ab025dc774e5759f4f69ba7631956cd"}, "2": {"tokens": [8, 10], "ref": 1, "hash": "5b6c72c2db642d78d4006c852a140daa7d439cd97b0d37ce0a372ab71589bc02"}, "4": {"tokens": [], "ref": 0, "hash": null}, "8": {"tokens": [], "ref": 0, "hash": null}, "9": {"tokens": [], "ref": 0, "hash": null}, "10": {"tokens": [], "ref": 0, "hash": null}, "11": {"tokens": [], "ref": 0, "hash": null}}, "states": {"A": {"ids": [11, 10, 7, 8], "computed": 4, "blocks": [5, 1], "outputs": [8, 1], "finished": true, "hit": 0}, "B": {"ids": [11, 10, 7, 8], "computed": 4, "blocks": [5, 7], "outputs": [8, 1], "finished": true, "hit": 2}, "C": {"ids": [10, 7, 8, 11, 10, 7, 8, 10], "computed": 8, "blocks": [3, 0, 6, 2], "outputs": [10, 1], "finished": true, "hit": 0}}}];let round=0;let timer=null;
+const notes=[
+'R1：A 前向计算3个 Prompt token，输出鱼。c=3；鱼只是刚采样的ID，下轮才计算它的KV。',
+'R2：B命中前2-token；A算鱼并输出EOS；B只算吃并输出鱼；C算前2-token。A结束后B仍引用块5。',
+'R3：B算鱼并结束；C再算3-token，累计5/7。块5活动引用归零后可保留为缓存。',
+'R4：C算最后2个 Prompt token，累计7/7；指定模拟输出ID10，非模型预测。',
+'R5：C计算ID10的KV，指定输出EOS。全部结束；EOS不进入下一轮前向。'];
+const labels={11:'小猫',10:'喜欢',7:'吃',8:'鱼',1:'EOS'};
+const safe=x=>String(x).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+function renderRound(){
+ const t=trace[round];document.querySelectorAll('.rounds button').forEach((b,i)=>b.classList.toggle('selected',i===round));
+ document.getElementById('roundtitle').textContent='R'+t.round+' · 新算 '+t.input_ids.length+' / 4 token';
+ document.getElementById('roundnote').textContent=notes[round];
+ document.getElementById('packed').textContent='input_ids       = '+JSON.stringify(t.input_ids)+'\npositions       = '+JSON.stringify(t.positions)+'\nslot_mapping    = '+JSON.stringify(t.slot_mapping)+'\nquery_start_loc = '+JSON.stringify(t.query_start_loc);
+ document.getElementById('statecards').innerHTML=['A','B','C'].map(n=>{
+  const s=t.states[n],e=t.entries.find(x=>x.request===n);
+  if(!s)return '<article class="card"><h3>请求 '+n+'</h3><p>尚未到达</p></article>';
+  const state=s.finished?'已结束':s.computed<({A:3,B:3,C:7}[n])?'Prefill中':'等待计算新生成token';
+  return '<article class="card"><h3>请求 '+n+' · '+state+'</h3><code>known IDs: '+safe(JSON.stringify(s.ids))+'<br>c='+s.computed+'；前缀命中='+s.hit+'<br>块表='+safe(JSON.stringify(s.blocks))+'<br>输出='+safe(JSON.stringify(s.outputs))+'</code><p class="muted">'+(e?'本轮 p=['+e.start+','+e.end+')；'+(e.output===null?'没有输出':('产生 '+(labels[e.output]||e.output))):'本轮没有新计算')+'</p></article>';
+ }).join('');
+ const used=Object.entries(t.pool_before_release).filter(([id,b])=>b.tokens.length>0);
+ document.getElementById('poolrows').innerHTML=used.map(([id,b])=>'<tr><td>'+id+'</td><td>'+safe(JSON.stringify(b.tokens))+'</td><td>'+b.ref+'</td><td>'+(b.hash?'完整块 / 有hash':'部分块')+'</td></tr>').join('');
+}
+document.querySelectorAll('.rounds button').forEach((b,i)=>b.addEventListener('click',()=>{round=i;renderRound()}));
+document.getElementById('rprev').onclick=()=>{round=Math.max(0,round-1);renderRound()};
+document.getElementById('rnext').onclick=()=>{round=Math.min(4,round+1);renderRound()};
+document.getElementById('play').onclick=()=>{if(timer){clearInterval(timer);timer=null;document.getElementById('play').textContent='自动播放';return}document.getElementById('play').textContent='暂停';timer=setInterval(()=>{round=(round+1)%5;renderRound()},2400)};
+document.getElementById('zoom').onclick=()=>{document.body.classList.toggle('actual');document.getElementById('zoom').textContent=document.body.classList.contains('actual')?'适应宽度':'矩阵1:1'};
+const chapters=[...document.querySelectorAll('section.chapter')],links=[...document.querySelectorAll('aside a')];let current=0;
+function update(){let k=0;for(let i=0;i<chapters.length;i++)if(chapters[i].getBoundingClientRect().top<180)k=i;current=k;links.forEach((a,i)=>a.classList.toggle('active',i===k));document.getElementById('pageno').textContent=(k+1)+' / 14';document.getElementById('progress').style.width=(100*scrollY/Math.max(1,document.documentElement.scrollHeight-innerHeight))+'%'}
+function jump(n){n=Math.max(0,Math.min(13,n));chapters[n].scrollIntoView({behavior:'smooth'});history.replaceState(null,'',new URL('#fig'+(n+1),location.href).href)}
+document.getElementById('prev').onclick=()=>jump(current-1);document.getElementById('next').onclick=()=>jump(current+1);
+window.addEventListener('scroll',update,{passive:true});renderRound();update();
+</script></body></html>

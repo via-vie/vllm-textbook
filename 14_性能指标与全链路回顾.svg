@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2295" viewBox="0 0 1600 2295" role="img" aria-labelledby="title14 desc14"><title id="title14">闭合整条链：怎么知道优化有效</title><desc id="desc14">把等待、首 token、逐 token 和完成时间连起来，理解吞吐与延迟的取舍。。解释每步输入、处理与输出。</desc><defs><marker id="arr14" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="2295" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 14 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">闭合整条链：怎么知道优化有效</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">把等待、首 token、逐 token 和完成时间连起来，理解吞吐与延迟的取舍。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → 从 API 到调度、KV、执行、返回的完整请求链与观测</text>
+<rect x="56" y="284" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  同一请求的时间轴，测量边界要一致</text>
+<rect x="80.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">到达与排队</text>
+<text x="98.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">模板 / tokenization</text>
+<text x="98.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">等待预算和 KV 空间</text>
+<path d="M400.0 426L447.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr14)"/>
+<rect x="455.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="473.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">首轮执行</text>
+<text x="473.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">Prefix 命中 / Prefill</text>
+<text x="473.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">采样第一个 token</text>
+<path d="M775.0 426L822.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr14)"/>
+<rect x="830.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="848.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">循环 Decode</text>
+<text x="848.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">每轮调度与 KV 访问</text>
+<text x="848.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">生成后续 token</text>
+<path d="M1150.0 426L1197.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr14)"/>
+<rect x="1205.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1223.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">输出与结束</text>
+<text x="1223.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">反分词 / 网络发送</text>
+<text x="1223.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">EOS 或其他停止条件</text>
+<text x="80" y="558" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">客户端端到端、服务器处理和 GPU kernel 时间是不同观测，不能直接互相替代。</text>
+<rect x="56" y="611" width="1488" height="454" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="650" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  指标、含义和对应机制</text>
+<rect x="80" y="687" width="290" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="719" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">指标</text>
+<rect x="370" y="687" width="620" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="384" y="719" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">含义</text>
+<rect x="990" y="687" width="530" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1004" y="719" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">关联路径</text>
+<rect x="80" y="741" width="290" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="773" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">TTFT</text>
+<rect x="370" y="741" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="384" y="773" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">首个输出 token 时间 − 请求到达时间</text>
+<rect x="990" y="741" width="530" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1004" y="773" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">排队、输入处理、缓存命中、Prefill、传输。</text>
+<rect x="80" y="795" width="290" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="827" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">ITL / TPOT</text>
+<rect x="370" y="795" width="620" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="384" y="827" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">token 间隔 / 每输出 token 时间；按基准定义统计</text>
+<rect x="990" y="795" width="530" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1004" y="827" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">Decode 调度、混合轮长度、带宽和发射成本。</text>
+<rect x="80" y="849" width="290" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="881" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">端到端延迟</text>
+<rect x="370" y="849" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="384" y="881" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">完成时间 − 到达时间</text>
+<rect x="990" y="849" width="530" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1004" y="881" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">TTFT + 后续生成 + 输出处理；观察分位数。</text>
+<rect x="80" y="903" width="290" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="935" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">吞吐 / goodput</text>
+<rect x="370" y="903" width="620" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="384" y="935" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">单位时间的请求或 token；goodput 加上延迟约束</text>
+<rect x="990" y="903" width="530" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1004" y="935" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">batching、容量、并行；区分输入/输出计数口径。</text>
+<rect x="80" y="957" width="290" height="84" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="989" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">KV / cache / preemptio</text>
+<text x="94" y="1019" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">n</text>
+<rect x="370" y="957" width="620" height="84" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="384" y="989" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">块占用、命中 token 和抢占次数</text>
+<rect x="990" y="957" width="530" height="84" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1004" y="989" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">排查容量、低命中与反复重算。</text>
+<rect x="56" y="1087" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1126" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  看到现象后，沿数据流找原因</text>
+<rect x="80" y="1163" width="300" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="1195" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">现象</text>
+<rect x="380" y="1163" width="620" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="394" y="1195" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">先拆解什么</text>
+<rect x="1000" y="1163" width="520" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1014" y="1195" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">比较什么</text>
+<rect x="80" y="1217" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1249" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">TTFT 高</text>
+<rect x="380" y="1217" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="1249" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">排队久，还是长 Prompt 计算久？</text>
+<rect x="1000" y="1217" width="520" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1014" y="1249" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">相同负载下，前缀命中与 token 预算。</text>
+<rect x="80" y="1271" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1303" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">流式输出抖动</text>
+<rect x="380" y="1271" width="620" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="394" y="1303" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">长 Prefill、CPU 或网络是否积压？</text>
+<rect x="1000" y="1271" width="520" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1014" y="1303" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">ITL 分位数与混合 batch / chunk 大小。</text>
+<rect x="80" y="1325" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1357" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">频繁抢占</text>
+<rect x="380" y="1325" width="620" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="1357" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">上下文、并发、权重和图占用？</text>
+<rect x="1000" y="1325" width="520" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1014" y="1357" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">相同输入分布下，容量与并发上限。</text>
+<rect x="80" y="1379" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1411" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">GPU 不忙但延迟高</text>
+<rect x="380" y="1379" width="620" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="394" y="1411" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">输入、调度、发射或跨卡通信？</text>
+<rect x="1000" y="1379" width="520" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1014" y="1411" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">CPU/GPU profile，不直接盲目加大 batch。</text>
+<rect x="56" y="1479" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1518" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  本教程已验证什么</text>
+<text x="80" y="1555" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">数值验证：五轮输入来源、进度 c、预算、块地址、完整前缀复用、活动引用和 EOS 无额外 KV。</text>
+<text x="80" y="1589" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">分页读取与在线 Softmax 合并，数值对齐既有模型的连续 Attention；完整精度数据保存在 _data。</text>
+<text x="80" y="1623" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">未运行实际 vLLM / GPU 基准，因此不提供虚构的 tokens/s、毫秒耗时或加速倍数。</text>
+<text x="80" y="1657" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">真实测评需固定模型、版本、硬件、精度、输入/输出长度分布、到达率和并发，比较 p50/p95/p99。</text>
+<rect x="56" y="1727" width="1488" height="340" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1766" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">05  再完整走一次 A：所有部分处在同一条连续链</text>
+<text x="80" y="1803" font-size="23" fill="#14243b" font-weight="400" text-anchor="start">“小猫喜欢吃” → Tokenizer [11,10,7] → 请求 A / c=0</text>
+<text x="80" y="1843" font-size="23" fill="#14243b" font-weight="400" text-anchor="start">R1 {A:3} → table=[5,1] → slots=[10,11,2] → Prefill 逐层写 KV</text>
+<text x="80" y="1883" font-size="23" fill="#14243b" font-weight="400" text-anchor="start">尾部 logits → ID8“鱼” → 流式返回；此时 c=3，known_ids 长度=4</text>
+<text x="80" y="1923" font-size="23" fill="#14243b" font-weight="400" text-anchor="start">R2 混合 A/B/C → A 输入8 / p3 / slot3 → 依块5、块1读4-token上下文</text>
+<text x="80" y="1963" font-size="23" fill="#14243b" font-weight="400" text-anchor="start">Attention → 残差 / FFN / 输出头 → EOS → A完成 → 释放块引用</text>
+<text x="80" y="2003" font-size="23" fill="#14243b" font-weight="400" text-anchor="start">块5因 B仍引用而保留 → B结束后可回收或缓存 → 服务继续接收请求</text>
+<rect x="56" y="2089" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="2129" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 回看各章，或用网页的五轮调度播放器逐项检查输入与状态</text>
+<text x="56" y="2189" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/usage/metrics/" target="_blank"><text x="56" y="2225" font-size="17" fill="#2563eb">Production Metrics</text></a>
+<a href="https://docs.vllm.ai/en/stable/configuration/optimization/" target="_blank"><text x="806" y="2225" font-size="17" fill="#2563eb">Optimization and Tuning</text></a>
+</svg>

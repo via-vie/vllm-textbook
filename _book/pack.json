@@ -1,0 +1,108 @@
+{
+  "scope": "Input packing arithmetic; A/B share the same first 16 tokens.",
+  "rows": [
+    {
+      "id": "A",
+      "state_row": 2,
+      "n": 1,
+      "positions": [
+        19
+      ],
+      "seq_len": 20,
+      "blocks": [
+        7,
+        2
+      ],
+      "input_ids": [
+        8
+      ]
+    },
+    {
+      "id": "B",
+      "state_row": 0,
+      "n": 3,
+      "positions": [
+        16,
+        17,
+        18
+      ],
+      "seq_len": 19,
+      "blocks": [
+        7,
+        11
+      ],
+      "input_ids": [
+        11,
+        10,
+        7
+      ]
+    },
+    {
+      "id": "C",
+      "state_row": 3,
+      "n": 4,
+      "positions": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "seq_len": 4,
+      "blocks": [
+        9
+      ],
+      "input_ids": [
+        11,
+        10,
+        7,
+        8
+      ]
+    }
+  ],
+  "query_start_loc": [
+    0,
+    1,
+    4,
+    8
+  ],
+  "idx_mapping": [
+    2,
+    0,
+    3
+  ],
+  "positions": [
+    19,
+    16,
+    17,
+    18,
+    0,
+    1,
+    2,
+    3
+  ],
+  "input_ids": [
+    8,
+    11,
+    10,
+    7,
+    11,
+    10,
+    7,
+    8
+  ],
+  "seq_lens": [
+    20,
+    19,
+    4
+  ],
+  "slot_mapping": [
+    35,
+    176,
+    177,
+    178,
+    144,
+    145,
+    146,
+    147
+  ]
+}

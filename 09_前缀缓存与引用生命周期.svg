@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1970" viewBox="0 0 1600 1970" role="img" aria-labelledby="title9 desc9"><title id="title9">前缀缓存：复用已经算过的上下文</title><desc id="desc9">先有因果相同的前缀，才有相同 KV；词语相同但之前历史不同，仍不能复用。。解释每步输入、处理与输出。</desc><defs><marker id="arr9" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1970" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 09 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">前缀缓存：复用已经算过的上下文</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">先有因果相同的前缀，才有相同 KV；词语相同但之前历史不同，仍不能复用。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → A 已发布块5=[11,10]；B 输入 [11,10,7]</text>
+<rect x="56" y="284" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  B 跳过前两行的模型前向，尾部自己计算</text>
+<rect x="80.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">A：table=[5,1]</text>
+<text x="98.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">块5：[11,10] / 完整</text>
+<text x="98.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">块1：[7,空] / R1后</text>
+<path d="M525.0 426L572.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr9)"/>
+<rect x="580.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">共享物理块5</text>
+<text x="598.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">保存 p0,p1 的各层 KV</text>
+<text x="598.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">R2 ref_cnt：1 → 2</text>
+<path d="M1025.0 426L1072.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr9)"/>
+<rect x="1080.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">B：table=[5,7]</text>
+<text x="1098.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">p0,p1 直接指向块5</text>
+<text x="1098.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">p2 的7写私有块7</text>
+<text x="80" y="558" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">B 只计算 p2，但 p2 的 Q 仍读取三 token 上下文；复用 KV 不等于直接返回旧回复。</text>
+<rect x="56" y="611" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="650" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  缓存键必须体现“当前块之前的全部历史”</text>
+<text x="80" y="687" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">概念键：H_j = hash(H_(j−1), 本块 token IDs, 额外身份信息)。父 hash 将前面的上下文带入。</text>
+<text x="80" y="721" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">同样的 [11,10] 出现在不同历史后面，逐层状态可能不同；不能只对当前块的文字求 hash。</text>
+<text x="80" y="755" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">LoRA、图像内容等会改变状态，应纳入身份；还可通过 cache salt 控制复用范围。</text>
+<text x="80" y="789" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">本地模拟用“完整前缀 IDs 的 SHA-256”表达因果身份，并未复制 vLLM 的具体序列化实现。</text>
+<rect x="56" y="859" width="1488" height="424" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="898" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  引用数归零，不等于缓存内容立刻被擦除</text>
+<rect x="80" y="935" width="280" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="967" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">时点</text>
+<rect x="360" y="935" width="200" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="374" y="967" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">块5引用</text>
+<rect x="560" y="935" width="350" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="574" y="967" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">私有尾块</text>
+<rect x="910" y="935" width="610" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="924" y="967" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">作用</text>
+<rect x="80" y="989" width="280" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1021" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R1 后</text>
+<rect x="360" y="989" width="200" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="374" y="1021" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="560" y="989" width="350" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="574" y="1021" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A：块1</text>
+<rect x="910" y="989" width="610" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="924" y="1021" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">完整块5可被缓存索引找到。</text>
+<rect x="80" y="1043" width="280" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1075" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R2 B 命中</text>
+<rect x="360" y="1043" width="200" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="374" y="1075" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">2</text>
+<rect x="560" y="1043" width="350" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="574" y="1075" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">B 新分块7</text>
+<rect x="910" y="1043" width="610" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="924" y="1075" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A/B 共用只读完整块。</text>
+<rect x="80" y="1097" width="280" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1129" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R2 A 结束</text>
+<rect x="360" y="1097" width="200" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="374" y="1129" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="560" y="1097" width="350" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="574" y="1129" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">块1引用归零</text>
+<rect x="910" y="1097" width="610" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="924" y="1129" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">B 仍在用块5，不可给其他请求覆盖。</text>
+<rect x="80" y="1151" width="280" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1183" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R3 B 结束</text>
+<rect x="360" y="1151" width="200" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="374" y="1183" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="560" y="1151" width="350" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="574" y="1183" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">块7引用归零</text>
+<rect x="910" y="1151" width="610" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="924" y="1183" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">块5可保留 KV/hash，进入可回收队列。</text>
+<rect x="80" y="1205" width="280" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1237" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">新分配有压力</text>
+<rect x="360" y="1205" width="200" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="374" y="1237" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">可回收缓存被驱逐</text>
+<rect x="560" y="1205" width="350" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="574" y="1237" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">物理块再分配</text>
+<rect x="910" y="1205" width="610" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="924" y="1237" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">去掉旧 hash 后才能装入新内容。</text>
+<rect x="56" y="1305" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1344" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  完整块复用、尾 token 重算与写时复制</text>
+<text x="80" y="1381" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">本例按普通完整块命中路径，B 命中 2/3 token。混合模型与新版本可有不同的匹配粒度。</text>
+<text x="80" y="1415" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">Prompt 全部命中 KV 也不意味着 logits 被缓存；常见生成路径仍要处理尾 token 才能预测下一 token。</text>
+<text x="80" y="1449" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">原论文为并行采样讨论共享部分块的 copy-on-write；本例 B 只共享完整块，尾块另分配，不触发 COW。</text>
+<text x="80" y="1483" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">V1 append-only 块表可暂时保存内容重复的物理块；不能假设检测相同后总会立即替换运行中的块表。</text>
+<rect x="56" y="1553" width="1488" height="158" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1592" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">05  节省的是哪一段时间</text>
+<text x="80" y="1629" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">APC 主要省去重复前缀的 Prefill 计算；后续 Decode 仍要读取这段历史 KV。</text>
+<text x="80" y="1663" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">因此 Prefix Cache 不会自动缩短模型上下文，也不会让长上下文 Decode 的显存读取消失。</text>
+<rect x="56" y="1733" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1773" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 活动引用、前缀索引和可回收块 → 10：计算容量并处理内存压力</text>
+<text x="56" y="1833" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/design/prefix_caching/" target="_blank"><text x="56" y="1869" font-size="17" fill="#2563eb">Prefix Caching design</text></a>
+<a href="https://docs.vllm.ai/en/stable/features/automatic_prefix_caching/" target="_blank"><text x="806" y="1869" font-size="17" fill="#2563eb">Automatic Prefix Caching</text></a>
+<a href="https://arxiv.org/html/2309.06180v1" target="_blank"><text x="56" y="1900" font-size="17" fill="#2563eb">PagedAttention paper · §3–5</text></a>
+</svg>

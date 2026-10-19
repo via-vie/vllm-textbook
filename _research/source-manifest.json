@@ -1,0 +1,871 @@
+{
+  "repo": "https://github.com/vllm-project/vllm",
+  "tag": "v0.30.0",
+  "commit": "ced6857afa0ea7b2e3f0846a62e1394e90f15607",
+  "date": "2026-10-19",
+  "snapshot_root": "_source/snapshot-ced6857",
+  "files": [
+    {
+      "path": "LICENSE",
+      "git_blob": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "bytes": 11357,
+      "lines": 201
+    },
+    {
+      "path": "README.md",
+      "git_blob": "ca31a8cce94d828b38dbb9d206c12e4c69a92052",
+      "sha256": "8d2e7cd8d120bcd91ddfa85ef957f7246021b4a3f46f2e1f4ccf084ec6c20026",
+      "bytes": 5708,
+      "lines": 110
+    },
+    {
+      "path": "vllm/entrypoints/llm.py",
+      "git_blob": "e3d0b2f1e5203822b8c1bcfb959b04d6039b8070",
+      "sha256": "52de4ac99489e004ef6c61d0bedc84aa96020dd58b8bd1ae500814b548b2b83e",
+      "bytes": 41687,
+      "lines": 920
+    },
+    {
+      "path": "vllm/entrypoints/cli/serve.py",
+      "git_blob": "6a8492f4c4b7b0ec51d31435d01fef9e9db8a1fe",
+      "sha256": "c182c88347f1eb3440a816986f1c2025a2ab2a13236cd68b0ad0146250d031ff",
+      "bytes": 16188,
+      "lines": 414
+    },
+    {
+      "path": "vllm/entrypoints/openai/api_server.py",
+      "git_blob": "a8e8b58c1877eed6d4be56c694d0aba53308643d",
+      "sha256": "470ff555bdc19f8e17edf4ee7b6ec3f49ff5af0f773e2a7f91bab536e2239109",
+      "bytes": 1854,
+      "lines": 59
+    },
+    {
+      "path": "vllm/entrypoints/openai/chat_completion/api_router.py",
+      "git_blob": "aecf5bba448340cde72a369e571159937a664009",
+      "sha256": "77f858fe0079b9dd131c26d22641c79d4ac0f2b22688d033863954a8a669d7d3",
+      "bytes": 3905,
+      "lines": 112
+    },
+    {
+      "path": "vllm/entrypoints/openai/chat_completion/serving.py",
+      "git_blob": "06e7315c24982e0d9f1c454efde576bac5e84e1f",
+      "sha256": "ea1f76074a9587c8054f54d30a6ba748b6a5fc4d90dd82c801504505c1da1f92",
+      "bytes": 56242,
+      "lines": 1305
+    },
+    {
+      "path": "vllm/entrypoints/openai/completion/serving.py",
+      "git_blob": "2fa01478cee60ad7a1d2307b769c136c70fe0f32",
+      "sha256": "75d05ddddf303734a078a3e42fcb173fef58ea56da09bc0b5c7525cb9bbbf527",
+      "bytes": 30431,
+      "lines": 738
+    },
+    {
+      "path": "vllm/entrypoints/serve/engine/serving.py",
+      "git_blob": "23e3927203136712480858e48244a1d3e098da59",
+      "sha256": "70143311acc2230b925e7f3603b8b9314f029ff5e98d5af990b3bdca691331f1",
+      "bytes": 7253,
+      "lines": 197
+    },
+    {
+      "path": "vllm/entrypoints/chat_utils.py",
+      "git_blob": "addcc5f76df8896e2ba244b6875f91ece77a4e38",
+      "sha256": "bc2615d8152899594902186697e2a905274f2301897eec50dd5823a402e0de7d",
+      "bytes": 83576,
+      "lines": 2261
+    },
+    {
+      "path": "vllm/renderers/base.py",
+      "git_blob": "4aca17fa4334f936e3c9d31afb6809680ae7fe76",
+      "sha256": "4db44560f4d331bf0f184626ed7cac97b350355a5c64bce648bf1fa971b16d68",
+      "bytes": 46364,
+      "lines": 1235
+    },
+    {
+      "path": "vllm/renderers/hf.py",
+      "git_blob": "268a9aa463673752ec244c136399fc9a5ede7cce",
+      "sha256": "9cec4d72b0a7464138216791499a2de25adb8edc0fe9a1cd5bd2d6a837ee384c",
+      "bytes": 52699,
+      "lines": 1427
+    },
+    {
+      "path": "vllm/renderers/online_renderer.py",
+      "git_blob": "2ab5725b73fc782f41b24a50c2b2cf6e25d77c81",
+      "sha256": "147ac64103d7ffa842cc6b91e916c5de8aaab35f79762451e2c0ee8cb5513c0e",
+      "bytes": 29296,
+      "lines": 746
+    },
+    {
+      "path": "vllm/renderers/inputs/tokenize.py",
+      "git_blob": "4168e201203e54ddad32888fd56e735056d264ec",
+      "sha256": "e69f7e09047186ba9702ee33a2e960729f85837aadf06dd49431ec2badfc571c",
+      "bytes": 1394,
+      "lines": 57
+    },
+    {
+      "path": "vllm/engine/arg_utils.py",
+      "git_blob": "b420e84f542b0679d746eb22ffc6ff728d6397f1",
+      "sha256": "ead004ca266419cd25f54a7aefc0e20e1eb046f363b7f5cc977e14f52ee44bb1",
+      "bytes": 130770,
+      "lines": 3030
+    },
+    {
+      "path": "vllm/config/vllm.py",
+      "git_blob": "8e0846982b74eb782ebb74ff7364ea321abe5b00",
+      "sha256": "956b812e5a719bcbfa3a3958801361b38b9c928c96b8c073311bbb96376dfb7a",
+      "bytes": 151001,
+      "lines": 3389
+    },
+    {
+      "path": "vllm/config/model.py",
+      "git_blob": "89978c35d051ea401d67fd6db2a278caeddcfc42",
+      "sha256": "f4168b67cc93ce72ff2a6d4c66974223e32fd0f1fab4c05e44bd68a275e18d69",
+      "bytes": 106536,
+      "lines": 2544
+    },
+    {
+      "path": "vllm/config/cache.py",
+      "git_blob": "9bd898731eb1e726ca58c34c7d662dd9ecbd4e1d",
+      "sha256": "f1c226ba679c884930dbfcaf41a57248b137a9a20d3ed8e3d3b31752bb484c07",
+      "bytes": 17129,
+      "lines": 359
+    },
+    {
+      "path": "vllm/config/scheduler.py",
+      "git_blob": "8aa0ffa5dcfff5f9c41a4bcb7bf49cc251d67333",
+      "sha256": "822179da62be4bca0619c8590082ae09123f5c4415f9cc2037be673748239edb",
+      "bytes": 14778,
+      "lines": 331
+    },
+    {
+      "path": "vllm/config/parallel.py",
+      "git_blob": "0213e06283df12355135990d09dd96c53af3527d",
+      "sha256": "f012ace89e3fb730a467f729f602679bc145c49f0d10721811c9d818570e7b2b",
+      "bytes": 47830,
+      "lines": 1113
+    },
+    {
+      "path": "vllm/config/compilation.py",
+      "git_blob": "2cd5fae775545dfce839296a9c0d9a5f8eef5b8a",
+      "sha256": "c9cec5c7200e8e559810ec8c30113ad61dab6780f9f7fb3c116bd0d9b5a43065",
+      "bytes": 69731,
+      "lines": 1599
+    },
+    {
+      "path": "vllm/config/speculative.py",
+      "git_blob": "2396b26cb01a11d1b94bad51aa9a3396b73dbcc9",
+      "sha256": "9c642a87264339c0dbc1d0b57330572149df0f9d5e16c6893b9895e50a619e19",
+      "bytes": 87011,
+      "lines": 1966
+    },
+    {
+      "path": "vllm/envs.py",
+      "git_blob": "6158f86f896b162caed7340f8b3d8b2671fbe773",
+      "sha256": "fbd370b2f56ff798d373e85705c9e044ccae893ef974f2800eec4ef6f2b4fb7f",
+      "bytes": 113452,
+      "lines": 2387
+    },
+    {
+      "path": "vllm/sampling_params.py",
+      "git_blob": "c0ab45ced7027794dd29ed395a2b4d432cd9dca0",
+      "sha256": "f21efc98bf8ce8aab88eb67adb4207285e509a167d976e14d3e2e8282e024bea",
+      "bytes": 56186,
+      "lines": 1319
+    },
+    {
+      "path": "vllm/outputs.py",
+      "git_blob": "84b9fccdc88d01740872b47bf94319ac5489e993",
+      "sha256": "346d1f9204a441867efc3af7c5a99d8a70ef0f69fe607dfa8a4a2557a82ca425",
+      "bytes": 14353,
+      "lines": 389
+    },
+    {
+      "path": "vllm/forward_context.py",
+      "git_blob": "8d9eb5d7db3bb98514ad03bb092dff4506fcea0c",
+      "sha256": "cc1473477dcc7b762c3901b25cc7bf35c06a2c42f193136fed553abf6fe33f0e",
+      "bytes": 14580,
+      "lines": 385
+    },
+    {
+      "path": "vllm/v1/engine/__init__.py",
+      "git_blob": "5ae9ee0cac83d5c1431b3fa83b44a524d3fa99a9",
+      "sha256": "4e59828787634123026a6b424f48c21d691913dd338b59dd13f25fa260f2284b",
+      "bytes": 10351,
+      "lines": 322
+    },
+    {
+      "path": "vllm/v1/engine/llm_engine.py",
+      "git_blob": "32096079e0669104879c2021dea0bcdddd5c79d4",
+      "sha256": "d4d5fba309db4d3f271ac7479e3ddaa623045499e4c6cfac41c0c7710012413c",
+      "bytes": 18677,
+      "lines": 469
+    },
+    {
+      "path": "vllm/v1/engine/async_llm.py",
+      "git_blob": "bf3f5f420ae8ce46bcdc1e6cf16d12cc6b0585a6",
+      "sha256": "52cbf404f1dbc99c6bebf4a50a7eb18ff842a1f53106a45f365523192d816be1",
+      "bytes": 51783,
+      "lines": 1268
+    },
+    {
+      "path": "vllm/v1/engine/input_processor.py",
+      "git_blob": "3f86f3c8b239f3dc04b4f6ddb5afe87e8e5ce515",
+      "sha256": "c8abd8e4e14d99929d45a7ff3b2a74898269c5e2a7fa30b826623ee85e4ce813",
+      "bytes": 23935,
+      "lines": 559
+    },
+    {
+      "path": "vllm/v1/engine/core_client.py",
+      "git_blob": "c354ba699c756be18394fa2ec56a120d31735b47",
+      "sha256": "fd6ca0cb7499b3086eef2fc57674b7ace56ef1c648f09e92e144b255b79018f8",
+      "bytes": 81200,
+      "lines": 1969
+    },
+    {
+      "path": "vllm/v1/engine/core.py",
+      "git_blob": "ffc9a5de7e68a57be83c09b9752e100bbac3a1fe",
+      "sha256": "268bf40534a853812867ae8e80040f190983cb364b41182b55969aace20c93f5",
+      "bytes": 106584,
+      "lines": 2578
+    },
+    {
+      "path": "vllm/v1/engine/output_processor.py",
+      "git_blob": "257287243dbd417f7be5b0033e5e4b1c32f2b7d1",
+      "sha256": "e47b86cd69ce1c1e3f53dac655eaa75c32a4057d10f4a1db16bb83a397f2a329",
+      "bytes": 34979,
+      "lines": 888
+    },
+    {
+      "path": "vllm/v1/engine/detokenizer.py",
+      "git_blob": "f04fa30a1856234be53d75311f81f1c5aaac24ce",
+      "sha256": "213d71cf6eefcea061b28b656cf8a08af60c9f3513403e724b16876995f3de93",
+      "bytes": 13614,
+      "lines": 362
+    },
+    {
+      "path": "vllm/v1/engine/logprobs.py",
+      "git_blob": "8eef567b07151599b9bc27f6808dd27eb864032d",
+      "sha256": "14bbe78d92a2c451d79b3d9dd9d5268bc57e16bad5079e44ce9ed2cd805e873e",
+      "bytes": 12936,
+      "lines": 352
+    },
+    {
+      "path": "vllm/v1/request.py",
+      "git_blob": "8b453a09069e9fcf2e9c10333e68328548dd19f7",
+      "sha256": "da610d5203e72d2d524adc5fb39df11502a23520f2f31d9a44cf13d343f9c25d",
+      "bytes": 15829,
+      "lines": 406
+    },
+    {
+      "path": "vllm/v1/outputs.py",
+      "git_blob": "d8924b2738810ed910e2ad9582c31d094da79ce8",
+      "sha256": "65ab7698bbdea1d53502ef8df3689bec860521ab6e2fab3c7bff63151be039b1",
+      "bytes": 18031,
+      "lines": 469
+    },
+    {
+      "path": "vllm/v1/core/sched/scheduler.py",
+      "git_blob": "daf2b316d0754e21fd43b9f2e811c9c2c504802f",
+      "sha256": "c1db45f3bbad3a875dd8638331b8870c4380ac1ab4734265ba5c863833a82884",
+      "bytes": 152786,
+      "lines": 3250
+    },
+    {
+      "path": "vllm/v1/core/sched/async_scheduler.py",
+      "git_blob": "56a532b809a97873998fddf8c4d10029297b5fa9",
+      "sha256": "e586a0ef3c6778be56a93e7f9bb712d4de9de6e7d7fe7e3e1d51dae83ecfc508",
+      "bytes": 3283,
+      "lines": 70
+    },
+    {
+      "path": "vllm/v1/core/sched/output.py",
+      "git_blob": "3a46fa40a71e015e44755b9c4b479fcf9cbc5758",
+      "sha256": "3a66c8efaefe10c572f6f33cf1f8aa4610758c945130cad62eb9f7331005677c",
+      "bytes": 12558,
+      "lines": 327
+    },
+    {
+      "path": "vllm/v1/core/sched/interface.py",
+      "git_blob": "c15296dd0516b303cb19c3410b6e05c3d3dcd51f",
+      "sha256": "be6c008664096c5660a8879de72b315bbe479bf1d688be9b25891063ec53a367",
+      "bytes": 9881,
+      "lines": 262
+    },
+    {
+      "path": "vllm/v1/core/sched/request_queue.py",
+      "git_blob": "38c7db94a45e5f8e7116660f2d3547ab54138fb6",
+      "sha256": "4b8d938e5fb8152fe61030b8aa991f983fcac9a405c37ed8908045e05e82ae5e",
+      "bytes": 6989,
+      "lines": 208
+    },
+    {
+      "path": "vllm/v1/core/kv_cache_manager.py",
+      "git_blob": "226da3a1ed88406fa2f1865e80411b36d2533ca6",
+      "sha256": "58800535eda854580d84e1025bf32fe01b2a43ce0bba501b4f3d125e4f2c8afa",
+      "bytes": 41398,
+      "lines": 941
+    },
+    {
+      "path": "vllm/v1/core/kv_cache_coordinator.py",
+      "git_blob": "afb03ac3eac97c221bce60ef8f6b6b62dde7f3b1",
+      "sha256": "bf342f79f2bc8d6acb69d3becefb334509e84cae888d42bbd421a8dc8ca9eca3",
+      "bytes": 45268,
+      "lines": 1072
+    },
+    {
+      "path": "vllm/v1/core/single_type_kv_cache_manager.py",
+      "git_blob": "40027e71f566e17dffebfba6d21758147beb4d74",
+      "sha256": "0233531d85aeced9e57a38c76d83db970519c92902b7e55484390cb2b64985bf",
+      "bytes": 116729,
+      "lines": 2725
+    },
+    {
+      "path": "vllm/v1/core/block_pool.py",
+      "git_blob": "e2a06e7e4e168abd8cda29a9c1ca65c73494db44",
+      "sha256": "34c2fd67148cecb7763ff49ad694a57073759b0fa67572a4270dc995b4acf8fc",
+      "bytes": 36034,
+      "lines": 892
+    },
+    {
+      "path": "vllm/v1/core/kv_cache_utils.py",
+      "git_blob": "28478b69f5e6688faed62a017f2fb73e01d2e56f",
+      "sha256": "2666c9f113584e52e7521058efd2c0d9598544559dc942d3a3da87001a3fedf2",
+      "bytes": 114648,
+      "lines": 2882
+    },
+    {
+      "path": "vllm/v1/kv_cache_interface.py",
+      "git_blob": "8cd867eb9c608f8f55fb7ac2db4924cee404f18d",
+      "sha256": "1cf202f1a44d5bc5c3832b70b41507687ecceea3784e67a4f003bc0210d6eecb",
+      "bytes": 59289,
+      "lines": 1543
+    },
+    {
+      "path": "vllm/v1/executor/abstract.py",
+      "git_blob": "964f16ed2421fde8eba5bea4c2ea52384dda1e15",
+      "sha256": "97791426b549e4447c967f8b8e668c2e376c6a75fa7091fd9df11bc9dafb65f7",
+      "bytes": 15468,
+      "lines": 399
+    },
+    {
+      "path": "vllm/v1/executor/uniproc_executor.py",
+      "git_blob": "da1f2c588b6e5fe050a29052218cbb4c6ef3185e",
+      "sha256": "3cb039b80fe9b03dc1122f93c1f8a4098ef1355104b317ff6df25358f4349494",
+      "bytes": 7800,
+      "lines": 207
+    },
+    {
+      "path": "vllm/v1/executor/multiproc_executor.py",
+      "git_blob": "67a631d3ce201080a9deaa76972acfaa949bb73b",
+      "sha256": "3ed0149a8a8e1550c4f062af40e645d1b734e70f99981bc5bf15f0360507648a",
+      "bytes": 45225,
+      "lines": 1127
+    },
+    {
+      "path": "vllm/v1/worker/gpu_worker.py",
+      "git_blob": "2a3531b61b38992ae0dd7de408015716ab4e6be7",
+      "sha256": "6994436e4547c0996ab555b3e814e8ccea26b650dfc1b378b97d640745309347",
+      "bytes": 65620,
+      "lines": 1557
+    },
+    {
+      "path": "vllm/v1/worker/gpu_model_runner.py",
+      "git_blob": "97a59bd273c3d79a27b4b54f4a0b30bfc332cb0d",
+      "sha256": "87c29d08c0bbf66993d8b984811e7325e35e6436242a773feb55ec88f16b2c51",
+      "bytes": 340999,
+      "lines": 7664
+    },
+    {
+      "path": "vllm/v1/worker/gpu_input_batch.py",
+      "git_blob": "01b6b5b0cc90cbdcb6fa56e838ba97eeca6b9a80",
+      "sha256": "18cf455c9d0eea61cc581c7932f2e6cd09786914e82dd35eef1c1430da359a0f",
+      "bytes": 48714,
+      "lines": 1151
+    },
+    {
+      "path": "vllm/v1/worker/block_table.py",
+      "git_blob": "33b52652a1540cd328e9ba7d1de358c758c8f3b5",
+      "sha256": "a09b8819e1417b7a186cf3472224e2138fc5d41a291c6692bb7df711b0c44259",
+      "bytes": 20556,
+      "lines": 547
+    },
+    {
+      "path": "vllm/v1/worker/worker_base.py",
+      "git_blob": "cf5b0e7ce3343f41af92098322964d6753316018",
+      "sha256": "4a1a5266b912fe97991d8dc89d92b923990da9f6cb4b817d00d52e9c0d26dd7c",
+      "bytes": 14284,
+      "lines": 382
+    },
+    {
+      "path": "vllm/v1/worker/gpu/model_runner.py",
+      "git_blob": "b66d552cb4874944f48d5bcc861f0005dfb029f6",
+      "sha256": "174c93db921c23cf0396eee4764be25b2bd2d4b6a06e9fa41ce3598b884ce8ce",
+      "bytes": 103052,
+      "lines": 2345
+    },
+    {
+      "path": "vllm/v1/worker/gpu/input_batch.py",
+      "git_blob": "d3c65bd06f1182081a72cf57216dc586f7145ff2",
+      "sha256": "d5dd956eb319bd69dd9e762047833d81ad40b21fce619fcb2133759e73620694",
+      "bytes": 24882,
+      "lines": 723
+    },
+    {
+      "path": "vllm/v1/worker/gpu/states.py",
+      "git_blob": "025c8300fcd21c9def6903a6e1f8b424a8995dc8",
+      "sha256": "99418f5df43ca612ded72609fee011620b065b2cab2f249ccb387096bf4ae71a",
+      "bytes": 5271,
+      "lines": 133
+    },
+    {
+      "path": "vllm/v1/worker/gpu/README.md",
+      "git_blob": "093f524b3250f017900cf43e133198e12b5a8524",
+      "sha256": "d47fdf9c7a4cbace5cf79bcd5d65f9f91cb1dd4910891c18fdbe560ddd03f16c",
+      "bytes": 181,
+      "lines": 4
+    },
+    {
+      "path": "vllm/v1/attention/backend.py",
+      "git_blob": "01599e9e9c72066096fadf432acee731790362a6",
+      "sha256": "01ac364372afa75fdb22486aa3a9c7cf9aebb742e3471dfb9e0f9d9d36b734bc",
+      "bytes": 40281,
+      "lines": 1099
+    },
+    {
+      "path": "vllm/v1/attention/selector.py",
+      "git_blob": "286fdcb8dfd20179a4b6b15502f2911ac9efd538",
+      "sha256": "87f653ded7974875183c920e3e4589c28116bcbc99714d1da7cb51ae77c0b182",
+      "bytes": 8575,
+      "lines": 240
+    },
+    {
+      "path": "vllm/v1/attention/backends/flash_attn.py",
+      "git_blob": "eb2268cc624c65d7acdb9ab48d32fc6b67ee7285",
+      "sha256": "b170a4789e18104c1bee35bea70df51abe6766693d8f4726a59f2e6f5c4282aa",
+      "bytes": 81870,
+      "lines": 2056
+    },
+    {
+      "path": "vllm/v1/attention/ops/paged_attn.py",
+      "git_blob": "896e929b5433d62f927422d97d02a3676e1e63c2",
+      "sha256": "016a95f892ec751c86b37be1e12171bad9f0b4076bbf2219ff336f4e9c503653",
+      "bytes": 1437,
+      "lines": 51
+    },
+    {
+      "path": "vllm/model_executor/layers/attention/attention.py",
+      "git_blob": "a001c8c29c805bcf77cfe9a62f2b345c094817a8",
+      "sha256": "bc897e452f3aea603e353ca42a365d3be8836e9485d78cbf8cc4677baca2fb42",
+      "bytes": 33071,
+      "lines": 794
+    },
+    {
+      "path": "vllm/model_executor/layers/linear.py",
+      "git_blob": "95dc852fb3078fc69782738bae3e5cc22814a597",
+      "sha256": "094fdf956c35bcfcb44b924a4ff60bb1768285963e4e1ae27f3022dd7e1e852d",
+      "bytes": 70664,
+      "lines": 1791
+    },
+    {
+      "path": "vllm/model_executor/layers/vocab_parallel_embedding.py",
+      "git_blob": "456a22a7a26af5147718e4a1760c0bc8acb486f8",
+      "sha256": "d42574ac79bd7d7847548784d2272c7c40cbd93fe6cdadb15e8c2db79d2074d7",
+      "bytes": 25228,
+      "lines": 629
+    },
+    {
+      "path": "vllm/model_executor/models/llama.py",
+      "git_blob": "9e0f45388ab70e6cefb34c7c2fc36705a066fe1e",
+      "sha256": "1654ee1ea3a030772dac4e4953843996bbc24c835aa63137e4e7e5c7ecf31a2c",
+      "bytes": 20657,
+      "lines": 585
+    },
+    {
+      "path": "vllm/model_executor/models/qwen3.py",
+      "git_blob": "79434bfac96426f9ee9483aaa70918b92601b9f9",
+      "sha256": "6ade9b12f4c7a4d670fe2e4dd778049bbe0a94fe2ba61a149d9706587a280e28",
+      "bytes": 12609,
+      "lines": 339
+    },
+    {
+      "path": "vllm/model_executor/models/registry.py",
+      "git_blob": "6fc9f9a080373024c02b2761c1eddccc07529af1",
+      "sha256": "a08a98aaae52ced32226aa647f58d682ac600b9572651a9b377b97846bc99212",
+      "bytes": 64420,
+      "lines": 1581
+    },
+    {
+      "path": "vllm/v1/sample/sampler.py",
+      "git_blob": "3efaf33d980f42f95184923184e2da8c5a69c7d4",
+      "sha256": "f95805b2c6d06218c724826aa5f881a606e8d0a534a566aee7c85948520dd216",
+      "bytes": 18037,
+      "lines": 438
+    },
+    {
+      "path": "vllm/v1/sample/ops/topk_topp_sampler.py",
+      "git_blob": "aeb82dec42323887771128f4703a206eee1b6698",
+      "sha256": "13ea4359832bc914492330958ec4f5ac140f408b8f410cc05c6eaf7ddcd70be4",
+      "bytes": 20132,
+      "lines": 530
+    },
+    {
+      "path": "vllm/v1/sample/rejection_sampler.py",
+      "git_blob": "85b623bd84fa803e2c7f692ad0b07f75b65901b5",
+      "sha256": "0bb9d224887ccb1355e16199005cc23a4afc6fa75156eca419851b7247d99750",
+      "bytes": 41582,
+      "lines": 1123
+    },
+    {
+      "path": "vllm/compilation/cuda_graph.py",
+      "git_blob": "55771608837d8effefb6e7a037f1bb1cb0803100",
+      "sha256": "05c86392d7fae967ac73076dba7e01990a0e3ae619e4866450a0c1be56bd1192",
+      "bytes": 14304,
+      "lines": 363
+    },
+    {
+      "path": "vllm/compilation/decorators.py",
+      "git_blob": "d5a2ac7e68138d9d95e87515b6a9ba182656c93e",
+      "sha256": "cab6962e8a1fead59c75f5ed8cb4732f9e5441ff972030c2f4b1c4ba0c58de3c",
+      "bytes": 32513,
+      "lines": 791
+    },
+    {
+      "path": "vllm/distributed/parallel_state.py",
+      "git_blob": "dc3022a16fec37d5b1371981801dcfebcaa66f30",
+      "sha256": "d9b10ad56833ebc08a753e1a050ef0989c30d4134021b7b7b00150b7bd01adc6",
+      "bytes": 98449,
+      "lines": 2660
+    },
+    {
+      "path": "vllm/distributed/kv_transfer/kv_connector/v1/base.py",
+      "git_blob": "c97374832ffe2ad01107fd0934632b6b360e118c",
+      "sha256": "97af64220475c6c9e8273438d7b5138b105ebe6944beb783facb36a3bb76f31b",
+      "bytes": 27229,
+      "lines": 760
+    },
+    {
+      "path": "docs/design/arch_overview.md",
+      "git_blob": "711e9a2668eb44ae6999cce30aae6472698c734f",
+      "sha256": "75e2f3d93bd28aaec56da4663536e3f65561c29d5a2940dc9e6cbe29fe95f21e",
+      "bytes": 14727,
+      "lines": 300
+    },
+    {
+      "path": "docs/design/model_runner_v2.md",
+      "git_blob": "cabc3526b19e6cd7df4f7ad4b51e3ea29925feb5",
+      "sha256": "5bb3b26d87976d32c90fbf1d297e8a2e4364e60c2f438475922072ed7fb2628e",
+      "bytes": 11244,
+      "lines": 206
+    },
+    {
+      "path": "docs/design/cuda_graphs.md",
+      "git_blob": "e274b68c70213a1c89fd48683f5a857ff7795b01",
+      "sha256": "31cf9507c13aafdb9be7150b529bc2f615daefb149c4d993eb49f84235651fa6",
+      "bytes": 19652,
+      "lines": 238
+    },
+    {
+      "path": "docs/design/torch_compile.md",
+      "git_blob": "4dc0da0c7d659be9923017db73a3aeff67c99728",
+      "sha256": "45cb6b8664e9926172541a79cd2be2f6686ae0c7f585ec65f9de64796c88aa2b",
+      "bytes": 19600,
+      "lines": 261
+    },
+    {
+      "path": "docs/design/attention_backends.md",
+      "git_blob": "d175add40b84a66f345f78630e28bece7b8ca776",
+      "sha256": "4e6a017f0745a1f8c55377e75da7251cbfbe47e20ff93e9f4e5c32e128946c0b",
+      "bytes": 9264,
+      "lines": 243
+    },
+    {
+      "path": "docs/design/prefix_caching.md",
+      "git_blob": "f783f4a1bc85a7ee15e00ed736a473f3ef3f896c",
+      "sha256": "67ee4e2b7bc23d40e9b366e4a9053ae4ecd0925ddef51f412ac5c16b9dc83a61",
+      "bytes": 13916,
+      "lines": 236
+    },
+    {
+      "path": "docs/design/hybrid_kv_cache_manager.md",
+      "git_blob": "9891c82f97c97d9183ca6b370b9def1e5612490b",
+      "sha256": "5a3138f8d3fddc44d69f7782510c0c97b394ee073bb743cae34bfbf281985b4a",
+      "bytes": 15575,
+      "lines": 246
+    },
+    {
+      "path": "docs/design/metrics.md",
+      "git_blob": "3d108890d7021e0cba25f00d997e8ebdaf216d10",
+      "sha256": "c74e053097d3a15400f0fc01a79c1876afba5219dbe5135585ef2171546953ea",
+      "bytes": 34019,
+      "lines": 717
+    },
+    {
+      "path": "docs/design/multiprocessing.md",
+      "git_blob": "d34b6fa86f3032c01669c1b6e0849f6ac978fd77",
+      "sha256": "1959cb563a5decf9b99186069e6b1d6a724b895ff1fd9c84fa1d382ed3a84d8f",
+      "bytes": 8321,
+      "lines": 191
+    },
+    {
+      "path": "docs/design/paged_attention.md",
+      "git_blob": "f4742c7faaa45697c9d1fd45743814f1b114932b",
+      "sha256": "0a8cab1d4ed29976792905056681d644dc6c755c588e4fcfb5bea6ced784dddf",
+      "bytes": 20735,
+      "lines": 498
+    },
+    {
+      "path": "tests/v1/core/test_scheduler.py",
+      "git_blob": "061c825fc895e7b3e8e09229721da46dc0f9853f",
+      "sha256": "079b68d681ca22e248680c04ceb522c3d6dcb982a46cf384d46304147946f099",
+      "bytes": 249055,
+      "lines": 6619
+    },
+    {
+      "path": "tests/v1/core/test_async_scheduler.py",
+      "git_blob": "7e27a4517e03c51cd67b623c1fa7a2e476b36e15",
+      "sha256": "955d741a61fe968eedce55a3bc05e01488bbc35538048f06b5c3edde8ce99d20",
+      "bytes": 32045,
+      "lines": 804
+    },
+    {
+      "path": "tests/v1/core/test_prefix_caching.py",
+      "git_blob": "fa70126e4119b18fd9d0e50b54cec104f04e6f7c",
+      "sha256": "d58e818aaecee612df82d2cb931a77de3f2f92a6037a5b56446772fb15f0edfa",
+      "bytes": 220206,
+      "lines": 5954
+    },
+    {
+      "path": "tests/v1/core/test_single_type_kv_cache_manager.py",
+      "git_blob": "14e46d7ba07ceaf3105d8e0b820344a78827efa1",
+      "sha256": "d46acdaf3aee51f6645612dd5527f3b03c19563bd1fe945505906727491de297",
+      "bytes": 28411,
+      "lines": 859
+    },
+    {
+      "path": "tests/v1/core/test_deferred_block_free.py",
+      "git_blob": "ebbf492e208dcd91ed8b79d97ae949cfe0d39b31",
+      "sha256": "ed60be787d87d150dd2989a49fe25c410e963cc6a62cfe6aac1d5eabd11566d6",
+      "bytes": 21715,
+      "lines": 546
+    },
+    {
+      "path": "tests/v1/engine/test_engine_core.py",
+      "git_blob": "98eda44032715d5ae8e93101491f2e1616cd081f",
+      "sha256": "86dfecc1942a3ff48fd0cd8d47e6c8bcc63d5fc92c26a0450d992762a9417e16",
+      "bytes": 25935,
+      "lines": 697
+    },
+    {
+      "path": "tests/v1/engine/test_async_llm.py",
+      "git_blob": "5dd37a6f7ed41f0fb4efdf88435d3e5e003cd57f",
+      "sha256": "1da44be750df199bdfdf25c604efc2785af5ee3f9ad54ab07b0c711fea5ab6da",
+      "bytes": 37358,
+      "lines": 1062
+    },
+    {
+      "path": "tests/v1/engine/test_output_processor.py",
+      "git_blob": "f578aae7f01573c9f8f497e11daccf70a6c2312e",
+      "sha256": "ee8cedfc16454634155a06ee83e4fe3e4a0556be0b16c00e1019dbfb266ec6a3",
+      "bytes": 57339,
+      "lines": 1450
+    },
+    {
+      "path": "tests/v1/engine/test_abort_final_step.py",
+      "git_blob": "d8d5b73d45b9eab79a7de8cecbe2bcbff5e5902f",
+      "sha256": "9ca0f7b6aa9c5e409980121cce514364afadaa53966a4c24e6a598e91e15522f",
+      "bytes": 12675,
+      "lines": 336
+    },
+    {
+      "path": "tests/v1/sample/test_sampler.py",
+      "git_blob": "c67199fa40771ef7abfbd2116b08afbd87fe549a",
+      "sha256": "ee73dd66f7d2c5f9e69aa9b59fdcc79a4bdf4517d4564f2a36ee21ff6f43f640",
+      "bytes": 18514,
+      "lines": 450
+    },
+    {
+      "path": "vllm/entrypoints/offline_utils.py",
+      "git_blob": "650860c3377bff6a993b436e94c08b14aa650199",
+      "sha256": "da427e190c1439c98cdc44e9c05117dcac6c65febb042c89327c33dec2a8af2d",
+      "bytes": 24232,
+      "lines": 634
+    },
+    {
+      "path": "vllm/entrypoints/generate/base/serving.py",
+      "git_blob": "dc41d3f067b27fb4f65cb7dc2c8670fc15002051",
+      "sha256": "35ec53f63e86a8c1725728911db0df44eb3101d8cd65e9b2f39d048956977bad",
+      "bytes": 13850,
+      "lines": 388
+    },
+    {
+      "path": "vllm/v1/core/sched/utils.py",
+      "git_blob": "31fa840e7783fd096feb41fcbfda9175616ae2c9",
+      "sha256": "1ed988044eb8028c77ede875bd1a5fd05ff6998b455d61e3997d6a3d7fc1c3a7",
+      "bytes": 4351,
+      "lines": 136
+    },
+    {
+      "path": "vllm/v1/worker/gpu/block_table.py",
+      "git_blob": "c01895e635452e1e6468590fa2cf51f9c0074d63",
+      "sha256": "61c004315d5af7e7eae4e2a9e6be92ea82c520327690a7f55a73bb9ce95f520a",
+      "bytes": 14435,
+      "lines": 353
+    },
+    {
+      "path": "vllm/v1/worker/gpu/buffer_utils.py",
+      "git_blob": "0731072e5968fb2ee0259c99f4d9c1e2834897c7",
+      "sha256": "6597f701a30261bf250e9ad5a29737264624a1caa20527aeea0dad630325b093",
+      "bytes": 11930,
+      "lines": 342
+    },
+    {
+      "path": "vllm/v1/worker/gpu/cudagraph_utils.py",
+      "git_blob": "9657c28fe6016e40dad75ec78ea223fe1434c744",
+      "sha256": "6e9c042890603535e300a40df8ee159dbed1058a64a83ae50ff0329e332e05ff",
+      "bytes": 46574,
+      "lines": 1026
+    },
+    {
+      "path": "vllm/v1/worker/gpu/sample/sampler.py",
+      "git_blob": "b069604c2964ebd3f11a788135746e1b87d314fb",
+      "sha256": "832c9945d201a1e730ff9b4b52076aa83bd4a5064e1e4cfea952cf84d4a8d1f0",
+      "bytes": 13754,
+      "lines": 344
+    },
+    {
+      "path": "vllm/v1/worker/gpu/sample/gumbel.py",
+      "git_blob": "4bf1f47280cfa69d3f66a6d8350cb4e129c37d08",
+      "sha256": "3ec1df510bdad13e8b0a457b5b67c98affdf6e57369e56cb471246cc8f40dd34",
+      "bytes": 10153,
+      "lines": 306
+    },
+    {
+      "path": "vllm/v1/worker/gpu/sample/states.py",
+      "git_blob": "fe4dee6a6b107be8015090eb225acd5b7ec4329e",
+      "sha256": "4e3671f93695ba5a48fad7d2d13beb231ac8741034904ed5a15d9f7b9b86662e",
+      "bytes": 4826,
+      "lines": 121
+    },
+    {
+      "path": "vllm/v1/worker/gpu/sample/output.py",
+      "git_blob": "ff3675db130f2682fce35537f37ed8ef6414ef46",
+      "sha256": "d6e298c0f197d487a8faaf7200f500fa83df1d7a4bbf4339cadd6a18008f7f9c",
+      "bytes": 5290,
+      "lines": 153
+    },
+    {
+      "path": "vllm/v1/worker/gpu/async_utils.py",
+      "git_blob": "0ab0ab3f3cd8d171a135dd51091ec2f3a1da77b3",
+      "sha256": "77e17a4570ead2be30ae9b00888cf077a3b873018c12ca0549b853bfda02c1ba",
+      "bytes": 10554,
+      "lines": 266
+    },
+    {
+      "path": "vllm/v1/cudagraph_dispatcher.py",
+      "git_blob": "6a48b6282d4339e4aaf71259faca21e911c0c64a",
+      "sha256": "51f632753af729aeee6ce4a802d9d74b64f22eef02a524f36e2a24b07ef0cf63",
+      "bytes": 15494,
+      "lines": 350
+    },
+    {
+      "path": "vllm/model_executor/model_loader/__init__.py",
+      "git_blob": "6305c45f5d0b805f528ade7dd0bf1c1cf916cfc9",
+      "sha256": "ef52616c4e844152cc6b3d347e56340eecf6dfd529d83ae7e2977d6c4d22be76",
+      "bytes": 5109,
+      "lines": 160
+    },
+    {
+      "path": "vllm/model_executor/model_loader/utils.py",
+      "git_blob": "11e6be5cf8a1e6509bcba7e0de89a71b285bacfb",
+      "sha256": "aa398e74ee835537403e60186f2e9a81e8741a4b35fec68b47df6537716a45b7",
+      "bytes": 12141,
+      "lines": 299
+    },
+    {
+      "path": "vllm/model_executor/model_loader/default_loader.py",
+      "git_blob": "039a577f80d1c4b13e935ffe1bce8bc92f6ca0ff",
+      "sha256": "9c9d54b1b650bf5affc924ebb8b8c73711e187ae7486cadd9f737bb1279cc7b8",
+      "bytes": 18754,
+      "lines": 470
+    },
+    {
+      "path": "vllm/model_executor/layers/quantization/base_config.py",
+      "git_blob": "d1f8df2df7bbf9d0f1a7466173f659fd4bcbf4de",
+      "sha256": "303a6a32ba56d12776e873b336650d20f3712dd786152fc1488846ad101a87a2",
+      "bytes": 12557,
+      "lines": 325
+    },
+    {
+      "path": "vllm/lora/model_manager.py",
+      "git_blob": "7791e1b762e146019021d6900b3645d57e0a4bb0",
+      "sha256": "6695bb7d6373d8f29bb13d6ae31e2ef2a98f8c23a6f37f9147d67cafca5f3302",
+      "bytes": 54567,
+      "lines": 1288
+    },
+    {
+      "path": "vllm/v1/metrics/stats.py",
+      "git_blob": "24e07e57cc7ac3975b3055b46fdc0af204b7b6fd",
+      "sha256": "af1983ddc32fa4d3284e72212c6525daf961dd84429023a02d612b68b3112cf3",
+      "bytes": 22935,
+      "lines": 643
+    },
+    {
+      "path": "vllm/v1/structured_output/__init__.py",
+      "git_blob": "7fd311c873c15c5acfbf0330347fee14c630b23c",
+      "sha256": "e33ed1786e5e60a2ef01313f52a67ba4b368477520ae43d453e8e960ac395b48",
+      "bytes": 19963,
+      "lines": 464
+    },
+    {
+      "path": "vllm/v1/structured_output/request.py",
+      "git_blob": "dce0038782ceb645bba59e52eba519c4a6a4051f",
+      "sha256": "6a06212f8f130555eb406ba03c92bf9e26fbfa1d747d83b8f68766ebf967490e",
+      "bytes": 3512,
+      "lines": 97
+    },
+    {
+      "path": "vllm/entrypoints/launchers/api_server/entry.py",
+      "git_blob": "37d7ca381455da42aa983a50f130b80ca485a50f",
+      "sha256": "db689f8486e5d2c9eb59d347e03a27ce837d014f8d3d7f84d55a0e382813ca84",
+      "bytes": 7748,
+      "lines": 230
+    },
+    {
+      "path": "vllm/entrypoints/launchers/api_server/app_state.py",
+      "git_blob": "09bb0ec63020bf6f7bb1c65bbe042ebbb6706634",
+      "sha256": "7a00aa48a9b4d62961e64b33d78c3016e6eccd684c7f8bf5ff221b2ac27eeb10",
+      "bytes": 6349,
+      "lines": 160
+    },
+    {
+      "path": "vllm/entrypoints/launchers/api_server/routers.py",
+      "git_blob": "39d670c019b7291180ec726b738838c2ec09488a",
+      "sha256": "c2f1bb2708f44f0fe24f3d8ab8f884c7262e551c6557ebc606263abc4d7b1db1",
+      "bytes": 2374,
+      "lines": 74
+    },
+    {
+      "path": "vllm/entrypoints/launchers/app.py",
+      "git_blob": "ddea7078105123380afe205f9092d24f28c766aa",
+      "sha256": "1f1ea5b79688cc042d9418435e84a6d04c17a46f6de6a98e560fe2f2ac5eeca4",
+      "bytes": 2177,
+      "lines": 56
+    },
+    {
+      "path": "vllm/entrypoints/cli/main.py",
+      "git_blob": "d173bc392f1d9407ea1c133677f0dbb616425f8a",
+      "sha256": "5aac2864e27d6ccc09ec3a8f2630ebbfb74292b84f27d2ae1d4ea2a6f5ecd80c",
+      "bytes": 3420,
+      "lines": 112
+    },
+    {
+      "path": "vllm/v1/engine/utils.py",
+      "git_blob": "9bce2b7687ef1617ed33d2194cccb7e51b7c614f",
+      "sha256": "d09f86b107b3c63b62f40a6590036be5b711778ea997fc5a6af6de94fdd2ccd3",
+      "bytes": 56169,
+      "lines": 1418
+    }
+  ],
+  "scope": "Selected source, docs and tests; not all repository files; not installed or GPU-executed."
+}

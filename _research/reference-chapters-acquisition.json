@@ -1,0 +1,26 @@
+{
+  "minimind-inference": {
+    "url": "https://tutorial.baimuyuan.online/minimind-tutorial/chapters/07-%E6%8E%A8%E7%90%86%E4%B8%8E%E7%94%9F%E6%88%90",
+    "final_url": "https://tutorial.baimuyuan.online/minimind-tutorial/chapters/07-%E6%8E%A8%E7%90%86%E4%B8%8E%E7%94%9F%E6%88%90",
+    "status": 200,
+    "content_type": "text/html",
+    "bytes": 124089,
+    "sha256": "095ff4bcbbe35754228f67f2064a5fb733a300e40b1d59a71087d14782b673b6"
+  },
+  "harness-loop": {
+    "url": "https://tutorial.baimuyuan.online/deepseek-harness-tutorial/chapters/09-Agent-Loop-%E4%B8%80%E6%AC%A1%E8%BD%AE%E6%AC%A1%E7%9A%84%E4%B8%80%E7%94%9F",
+    "final_url": "https://tutorial.baimuyuan.online/deepseek-harness-tutorial/chapters/09-Agent-Loop-%E4%B8%80%E6%AC%A1%E8%BD%AE%E6%AC%A1%E7%9A%84%E4%B8%80%E7%94%9F",
+    "status": 200,
+    "content_type": "text/html",
+    "bytes": 246845,
+    "sha256": "f7f913928966ebb049712ab11f323ec61d7391f89d2c2c6ba4c8244b7a4598e0"
+  },
+  "vllm_tag": {
+    "url": "https://api.github.com/repos/vllm-project/vllm/git/ref/tags/v0.30.0",
+    "final_url": "https://api.github.com/repos/vllm-project/vllm/git/ref/tags/v0.30.0",
+    "status": 200,
+    "content_type": "application/json; charset=utf-8",
+    "bytes": 339,
+    "sha256": "b8b3722e18d81fe1252836c0170d602b88b0f5dcac8be69f16df6c12375ad59a"
+  }
+}

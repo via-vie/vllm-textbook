@@ -1,0 +1,1050 @@
+{
+  "block_size": 2,
+  "budget": 4,
+  "requests": {
+    "A": {
+      "prompt": [
+        11,
+        10,
+        7
+      ],
+      "arrival": 1,
+      "output": [
+        8,
+        1
+      ]
+    },
+    "B": {
+      "prompt": [
+        11,
+        10,
+        7
+      ],
+      "arrival": 2,
+      "output": [
+        8,
+        1
+      ]
+    },
+    "C": {
+      "prompt": [
+        10,
+        7,
+        8,
+        11,
+        10,
+        7,
+        8
+      ],
+      "arrival": 2,
+      "output": [
+        10,
+        1
+      ]
+    }
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "arrivals": [
+        {
+          "request": "A",
+          "cached": 0,
+          "blocks": []
+        }
+      ],
+      "schedule": {
+        "A": 3
+      },
+      "entries": [
+        {
+          "request": "A",
+          "count": 3,
+          "start": 0,
+          "end": 3,
+          "input_ids": [
+            11,
+            10,
+            7
+          ],
+          "positions": [
+            0,
+            1,
+            2
+          ],
+          "slots": [
+            10,
+            11,
+            2
+          ],
+          "blocks": [
+            5,
+            1
+          ],
+          "output": 8,
+          "finished": false
+        }
+      ],
+      "input_ids": [
+        11,
+        10,
+        7
+      ],
+      "positions": [
+        0,
+        1,
+        2
+      ],
+      "slot_mapping": [
+        10,
+        11,
+        2
+      ],
+      "query_start_loc": [
+        0,
+        3
+      ],
+      "pool_before_release": {
+        "5": {
+          "tokens": [
+            11,
+            10
+          ],
+          "ref": 1,
+          "hash": "986892150e66df72bba661be9ce3b499bdae350eff9361c172dad56450f28672"
+        },
+        "1": {
+          "tokens": [
+            7
+          ],
+          "ref": 1,
+          "hash": null
+        },
+        "7": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "3": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "0": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "6": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "2": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "4": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "8": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "9": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "10": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "11": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        }
+      },
+      "states": {
+        "A": {
+          "ids": [
+            11,
+            10,
+            7,
+            8
+          ],
+          "computed": 3,
+          "blocks": [
+            5,
+            1
+          ],
+          "outputs": [
+            8
+          ],
+          "finished": false,
+          "hit": 0
+        }
+      }
+    },
+    {
+      "round": 2,
+      "arrivals": [
+        {
+          "request": "B",
+          "cached": 2,
+          "blocks": [
+            5
+          ]
+        },
+        {
+          "request": "C",
+          "cached": 0,
+          "blocks": []
+        }
+      ],
+      "schedule": {
+        "A": 1,
+        "B": 1,
+        "C": 2
+      },
+      "entries": [
+        {
+          "request": "A",
+          "count": 1,
+          "start": 3,
+          "end": 4,
+          "input_ids": [
+            8
+          ],
+          "positions": [
+            3
+          ],
+          "slots": [
+            3
+          ],
+          "blocks": [
+            5,
+            1
+          ],
+          "output": 1,
+          "finished": true
+        },
+        {
+          "request": "B",
+          "count": 1,
+          "start": 2,
+          "end": 3,
+          "input_ids": [
+            7
+          ],
+          "positions": [
+            2
+          ],
+          "slots": [
+            14
+          ],
+          "blocks": [
+            5,
+            7
+          ],
+          "output": 8,
+          "finished": false
+        },
+        {
+          "request": "C",
+          "count": 2,
+          "start": 0,
+          "end": 2,
+          "input_ids": [
+            10,
+            7
+          ],
+          "positions": [
+            0,
+            1
+          ],
+          "slots": [
+            6,
+            7
+          ],
+          "blocks": [
+            3
+          ],
+          "output": null,
+          "finished": false
+        }
+      ],
+      "input_ids": [
+        8,
+        7,
+        10,
+        7
+      ],
+      "positions": [
+        3,
+        2,
+        0,
+        1
+      ],
+      "slot_mapping": [
+        3,
+        14,
+        6,
+        7
+      ],
+      "query_start_loc": [
+        0,
+        1,
+        2,
+        4
+      ],
+      "pool_before_release": {
+        "5": {
+          "tokens": [
+            11,
+            10
+          ],
+          "ref": 2,
+          "hash": "986892150e66df72bba661be9ce3b499bdae350eff9361c172dad56450f28672"
+        },
+        "1": {
+          "tokens": [
+            7,
+            8
+          ],
+          "ref": 1,
+          "hash": "6cfbdbaa224751ac3a1b36f3e81fd8419d0c0b493dcfcc07e70e3478b167746d"
+        },
+        "7": {
+          "tokens": [
+            7
+          ],
+          "ref": 1,
+          "hash": null
+        },
+        "3": {
+          "tokens": [
+            10,
+            7
+          ],
+          "ref": 1,
+          "hash": "66970e0c4e334995e8f9721bfa797d4323784a31681b2ddcba0f72270bb75749"
+        },
+        "0": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "6": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "2": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "4": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "8": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "9": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "10": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "11": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        }
+      },
+      "states": {
+        "A": {
+          "ids": [
+            11,
+            10,
+            7,
+            8
+          ],
+          "computed": 4,
+          "blocks": [
+            5,
+            1
+          ],
+          "outputs": [
+            8,
+            1
+          ],
+          "finished": true,
+          "hit": 0
+        },
+        "B": {
+          "ids": [
+            11,
+            10,
+            7,
+            8
+          ],
+          "computed": 3,
+          "blocks": [
+            5,
+            7
+          ],
+          "outputs": [
+            8
+          ],
+          "finished": false,
+          "hit": 2
+        },
+        "C": {
+          "ids": [
+            10,
+            7,
+            8,
+            11,
+            10,
+            7,
+            8
+          ],
+          "computed": 2,
+          "blocks": [
+            3
+          ],
+          "outputs": [],
+          "finished": false,
+          "hit": 0
+        }
+      }
+    },
+    {
+      "round": 3,
+      "arrivals": [],
+      "schedule": {
+        "B": 1,
+        "C": 3
+      },
+      "entries": [
+        {
+          "request": "B",
+          "count": 1,
+          "start": 3,
+          "end": 4,
+          "input_ids": [
+            8
+          ],
+          "positions": [
+            3
+          ],
+          "slots": [
+            15
+          ],
+          "blocks": [
+            5,
+            7
+          ],
+          "output": 1,
+          "finished": true
+        },
+        {
+          "request": "C",
+          "count": 3,
+          "start": 2,
+          "end": 5,
+          "input_ids": [
+            8,
+            11,
+            10
+          ],
+          "positions": [
+            2,
+            3,
+            4
+          ],
+          "slots": [
+            0,
+            1,
+            12
+          ],
+          "blocks": [
+            3,
+            0,
+            6
+          ],
+          "output": null,
+          "finished": false
+        }
+      ],
+      "input_ids": [
+        8,
+        8,
+        11,
+        10
+      ],
+      "positions": [
+        3,
+        2,
+        3,
+        4
+      ],
+      "slot_mapping": [
+        15,
+        0,
+        1,
+        12
+      ],
+      "query_start_loc": [
+        0,
+        1,
+        4
+      ],
+      "pool_before_release": {
+        "5": {
+          "tokens": [
+            11,
+            10
+          ],
+          "ref": 1,
+          "hash": "986892150e66df72bba661be9ce3b499bdae350eff9361c172dad56450f28672"
+        },
+        "1": {
+          "tokens": [
+            7,
+            8
+          ],
+          "ref": 0,
+          "hash": "6cfbdbaa224751ac3a1b36f3e81fd8419d0c0b493dcfcc07e70e3478b167746d"
+        },
+        "7": {
+          "tokens": [
+            7,
+            8
+          ],
+          "ref": 1,
+          "hash": "6cfbdbaa224751ac3a1b36f3e81fd8419d0c0b493dcfcc07e70e3478b167746d"
+        },
+        "3": {
+          "tokens": [
+            10,
+            7
+          ],
+          "ref": 1,
+          "hash": "66970e0c4e334995e8f9721bfa797d4323784a31681b2ddcba0f72270bb75749"
+        },
+        "0": {
+          "tokens": [
+            8,
+            11
+          ],
+          "ref": 1,
+          "hash": "6bbaa58cddaa743113a8a6388c924629d3f1d6b03fc41d0281921ce1becf16ca"
+        },
+        "6": {
+          "tokens": [
+            10
+          ],
+          "ref": 1,
+          "hash": null
+        },
+        "2": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "4": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "8": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "9": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "10": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "11": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        }
+      },
+      "states": {
+        "A": {
+          "ids": [
+            11,
+            10,
+            7,
+            8
+          ],
+          "computed": 4,
+          "blocks": [
+            5,
+            1
+          ],
+          "outputs": [
+            8,
+            1
+          ],
+          "finished": true,
+          "hit": 0
+        },
+        "B": {
+          "ids": [
+            11,
+            10,
+            7,
+            8
+          ],
+          "computed": 4,
+          "blocks": [
+            5,
+            7
+          ],
+          "outputs": [
+            8,
+            1
+          ],
+          "finished": true,
+          "hit": 2
+        },
+        "C": {
+          "ids": [
+            10,
+            7,
+            8,
+            11,
+            10,
+            7,
+            8
+          ],
+          "computed": 5,
+          "blocks": [
+            3,
+            0,
+            6
+          ],
+          "outputs": [],
+          "finished": false,
+          "hit": 0
+        }
+      }
+    },
+    {
+      "round": 4,
+      "arrivals": [],
+      "schedule": {
+        "C": 2
+      },
+      "entries": [
+        {
+          "request": "C",
+          "count": 2,
+          "start": 5,
+          "end": 7,
+          "input_ids": [
+            7,
+            8
+          ],
+          "positions": [
+            5,
+            6
+          ],
+          "slots": [
+            13,
+            4
+          ],
+          "blocks": [
+            3,
+            0,
+            6,
+            2
+          ],
+          "output": 10,
+          "finished": false
+        }
+      ],
+      "input_ids": [
+        7,
+        8
+      ],
+      "positions": [
+        5,
+        6
+      ],
+      "slot_mapping": [
+        13,
+        4
+      ],
+      "query_start_loc": [
+        0,
+        2
+      ],
+      "pool_before_release": {
+        "5": {
+          "tokens": [
+            11,
+            10
+          ],
+          "ref": 0,
+          "hash": "986892150e66df72bba661be9ce3b499bdae350eff9361c172dad56450f28672"
+        },
+        "1": {
+          "tokens": [
+            7,
+            8
+          ],
+          "ref": 0,
+          "hash": "6cfbdbaa224751ac3a1b36f3e81fd8419d0c0b493dcfcc07e70e3478b167746d"
+        },
+        "7": {
+          "tokens": [
+            7,
+            8
+          ],
+          "ref": 0,
+          "hash": "6cfbdbaa224751ac3a1b36f3e81fd8419d0c0b493dcfcc07e70e3478b167746d"
+        },
+        "3": {
+          "tokens": [
+            10,
+            7
+          ],
+          "ref": 1,
+          "hash": "66970e0c4e334995e8f9721bfa797d4323784a31681b2ddcba0f72270bb75749"
+        },
+        "0": {
+          "tokens": [
+            8,
+            11
+          ],
+          "ref": 1,
+          "hash": "6bbaa58cddaa743113a8a6388c924629d3f1d6b03fc41d0281921ce1becf16ca"
+        },
+        "6": {
+          "tokens": [
+            10,
+            7
+          ],
+          "ref": 1,
+          "hash": "e18dae0115bc9740b3fe717ad22398734ab025dc774e5759f4f69ba7631956cd"
+        },
+        "2": {
+          "tokens": [
+            8
+          ],
+          "ref": 1,
+          "hash": null
+        },
+        "4": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "8": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "9": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "10": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "11": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        }
+      },
+      "states": {
+        "A": {
+          "ids": [
+            11,
+            10,
+            7,
+            8
+          ],
+          "computed": 4,
+          "blocks": [
+            5,
+            1
+          ],
+          "outputs": [
+            8,
+            1
+          ],
+          "finished": true,
+          "hit": 0
+        },
+        "B": {
+          "ids": [
+            11,
+            10,
+            7,
+            8
+          ],
+          "computed": 4,
+          "blocks": [
+            5,
+            7
+          ],
+          "outputs": [
+            8,
+            1
+          ],
+          "finished": true,
+          "hit": 2
+        },
+        "C": {
+          "ids": [
+            10,
+            7,
+            8,
+            11,
+            10,
+            7,
+            8,
+            10
+          ],
+          "computed": 7,
+          "blocks": [
+            3,
+            0,
+            6,
+            2
+          ],
+          "outputs": [
+            10
+          ],
+          "finished": false,
+          "hit": 0
+        }
+      }
+    },
+    {
+      "round": 5,
+      "arrivals": [],
+      "schedule": {
+        "C": 1
+      },
+      "entries": [
+        {
+          "request": "C",
+          "count": 1,
+          "start": 7,
+          "end": 8,
+          "input_ids": [
+            10
+          ],
+          "positions": [
+            7
+          ],
+          "slots": [
+            5
+          ],
+          "blocks": [
+            3,
+            0,
+            6,
+            2
+          ],
+          "output": 1,
+          "finished": true
+        }
+      ],
+      "input_ids": [
+        10
+      ],
+      "positions": [
+        7
+      ],
+      "slot_mapping": [
+        5
+      ],
+      "query_start_loc": [
+        0,
+        1
+      ],
+      "pool_before_release": {
+        "5": {
+          "tokens": [
+            11,
+            10
+          ],
+          "ref": 0,
+          "hash": "986892150e66df72bba661be9ce3b499bdae350eff9361c172dad56450f28672"
+        },
+        "1": {
+          "tokens": [
+            7,
+            8
+          ],
+          "ref": 0,
+          "hash": "6cfbdbaa224751ac3a1b36f3e81fd8419d0c0b493dcfcc07e70e3478b167746d"
+        },
+        "7": {
+          "tokens": [
+            7,
+            8
+          ],
+          "ref": 0,
+          "hash": "6cfbdbaa224751ac3a1b36f3e81fd8419d0c0b493dcfcc07e70e3478b167746d"
+        },
+        "3": {
+          "tokens": [
+            10,
+            7
+          ],
+          "ref": 1,
+          "hash": "66970e0c4e334995e8f9721bfa797d4323784a31681b2ddcba0f72270bb75749"
+        },
+        "0": {
+          "tokens": [
+            8,
+            11
+          ],
+          "ref": 1,
+          "hash": "6bbaa58cddaa743113a8a6388c924629d3f1d6b03fc41d0281921ce1becf16ca"
+        },
+        "6": {
+          "tokens": [
+            10,
+            7
+          ],
+          "ref": 1,
+          "hash": "e18dae0115bc9740b3fe717ad22398734ab025dc774e5759f4f69ba7631956cd"
+        },
+        "2": {
+          "tokens": [
+            8,
+            10
+          ],
+          "ref": 1,
+          "hash": "5b6c72c2db642d78d4006c852a140daa7d439cd97b0d37ce0a372ab71589bc02"
+        },
+        "4": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "8": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "9": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "10": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        },
+        "11": {
+          "tokens": [],
+          "ref": 0,
+          "hash": null
+        }
+      },
+      "states": {
+        "A": {
+          "ids": [
+            11,
+            10,
+            7,
+            8
+          ],
+          "computed": 4,
+          "blocks": [
+            5,
+            1
+          ],
+          "outputs": [
+            8,
+            1
+          ],
+          "finished": true,
+          "hit": 0
+        },
+        "B": {
+          "ids": [
+            11,
+            10,
+            7,
+            8
+          ],
+          "computed": 4,
+          "blocks": [
+            5,
+            7
+          ],
+          "outputs": [
+            8,
+            1
+          ],
+          "finished": true,
+          "hit": 2
+        },
+        "C": {
+          "ids": [
+            10,
+            7,
+            8,
+            11,
+            10,
+            7,
+            8,
+            10
+          ],
+          "computed": 8,
+          "blocks": [
+            3,
+            0,
+            6,
+            2
+          ],
+          "outputs": [
+            10,
+            1
+          ],
+          "finished": true,
+          "hit": 0
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "scope": "Synthetic timestamp example, not benchmark data.",
+  "timestamps": [
+    0.2,
+    0.24,
+    0.31
+  ],
+  "TTFT": 0.2,
+  "ITL": [
+    0.03999999999999998,
+    0.07
+  ],
+  "TPOT": 0.05499999999999999,
+  "E2E": 0.32
+}

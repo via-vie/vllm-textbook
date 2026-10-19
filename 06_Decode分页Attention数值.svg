@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2229" viewBox="0 0 1600 2229" role="img" aria-labelledby="title6 desc6"><title id="title6">Decode：按页读取 KV，算出下一 token</title><desc id="desc6">完整数值证明：物理位置分散，仍可得到与连续 Attention 相同的结果。。解释每步输入、处理与输出。</desc><defs><marker id="arr6" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="2229" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 06 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">Decode：按页读取 KV，算出下一 token</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">完整数值证明：物理位置分散，仍可得到与连续 Attention 相同的结果。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → ID8 / p3；A table=[5,1]；新 K/V 写 slot3</text>
+<rect x="56" y="284" width="1488" height="406" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  当前 Q 与追加后的逻辑 K/V（以 head 0 为例）</text>
+<text x="80" y="358" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">q [1,2]，来自 ID8 / p3</text>
+<rect x="80" y="360" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="388.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">-0.200</text>
+<rect x="210" y="360" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="388.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">-1.400</text>
+<text x="900" y="388" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">先计算 ID8 的 K/V，再让当前 Q 关注 p0–p3。</text>
+<text x="80" y="488" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">逻辑 K [4,2]：前两行在块5，后两行在块1</text>
+<rect x="80" y="490" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="518.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="210" y="490" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="518.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="80" y="534" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="562.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.764</text>
+<rect x="210" y="534" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="562.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.190</text>
+<rect x="80" y="578" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="606.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">-1.874</text>
+<rect x="210" y="578" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="606.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.697</text>
+<rect x="80" y="622" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="650.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">-1.400</text>
+<rect x="210" y="622" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="650.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.200</text>
+<text x="900" y="488" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">逻辑 V [4,2]</text>
+<rect x="900" y="490" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="965.0" y="518.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="1030" y="490" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="1095.0" y="518.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="900" y="534" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="965.0" y="562.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="1030" y="534" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="1095.0" y="562.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="900" y="578" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="965.0" y="606.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="1030" y="578" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="1095.0" y="606.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="900" y="622" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="965.0" y="650.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="1030" y="622" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="1095.0" y="650.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="56" y="712" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="751" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  每一页算出的打分，最后要在全局归一化</text>
+<rect x="80" y="788" width="300" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="820" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">物理块</text>
+<rect x="380" y="788" width="300" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="394" y="820" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">逻辑位置</text>
+<rect x="680" y="788" width="440" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="694" y="820" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">score=q·k/√2</text>
+<rect x="1120" y="788" width="400" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1134" y="820" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">最终概率</text>
+<rect x="80" y="842" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="874" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">5</text>
+<rect x="380" y="842" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="874" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="680" y="842" width="440" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="694" y="874" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">-1.400</text>
+<rect x="1120" y="842" width="400" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1134" y="874" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0.113</text>
+<rect x="80" y="896" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="928" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">5</text>
+<rect x="380" y="896" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="394" y="928" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="680" y="896" width="440" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="694" y="928" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">-1.286</text>
+<rect x="1120" y="896" width="400" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1134" y="928" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0.127</text>
+<rect x="80" y="950" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="982" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="380" y="950" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="982" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">2</text>
+<rect x="680" y="950" width="440" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="694" y="982" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">-0.426</text>
+<rect x="1120" y="950" width="400" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1134" y="982" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0.300</text>
+<rect x="80" y="1004" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1036" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="380" y="1004" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="394" y="1036" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">3</text>
+<rect x="680" y="1004" width="440" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="694" y="1036" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0.000</text>
+<rect x="1120" y="1004" width="400" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1134" y="1036" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0.460</text>
+<rect x="56" y="1104" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1143" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  不能每页独立 Softmax 后把输出简单平均</text>
+<text x="80" y="1180" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">每页 j 计算 m_j=max(scores_j)，l_j=Σexp(score−m_j)，u_j=Σexp(score−m_j)·v。</text>
+<text x="80" y="1214" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">取 m=max(m_j)，然后 l=Σexp(m_j−m)·l_j，u=Σexp(m_j−m)·u_j，最终 o=u/l。</text>
+<text x="80" y="1248" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">重标定让每页分母处于同一尺度，与所有有效 token 的一次 Softmax 数学等价。</text>
+<text x="80" y="1282" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">分页分配块与 GPU 计算 tile / split 不必一致；这里按两页合并是原理展示。</text>
+<rect x="56" y="1352" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1391" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  本例逐页统计和完整精度合并</text>
+<rect x="80" y="1428" width="350" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="1460" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">位置 / 汇总</text>
+<rect x="430" y="1428" width="200" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="444" y="1460" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">m</text>
+<rect x="630" y="1428" width="240" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="644" y="1460" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">l</text>
+<rect x="870" y="1428" width="650" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="884" y="1460" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">u / 输出</text>
+<rect x="80" y="1482" width="350" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1514" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">块5 / p0,p1</text>
+<rect x="430" y="1482" width="200" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="444" y="1514" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">-1.286</text>
+<rect x="630" y="1482" width="240" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="644" y="1514" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1.892</text>
+<rect x="870" y="1482" width="650" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="884" y="1514" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[1.262, 1.414]</text>
+<rect x="80" y="1536" width="350" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1568" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">块1 / p2,p3</text>
+<rect x="430" y="1536" width="200" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="444" y="1568" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0.000</text>
+<rect x="630" y="1536" width="240" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="644" y="1568" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1.653</text>
+<rect x="870" y="1536" width="650" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="884" y="1568" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[0.924, 2.338]</text>
+<rect x="80" y="1590" width="350" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1622" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">全局同一尺度</text>
+<rect x="430" y="1590" width="200" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="444" y="1622" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0.000</text>
+<rect x="630" y="1590" width="240" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="644" y="1622" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">2.176</text>
+<rect x="870" y="1590" width="650" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="884" y="1622" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[1.272, 2.729]</text>
+<rect x="80" y="1644" width="350" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1676" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">最终 o=u/l</text>
+<rect x="430" y="1644" width="200" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="444" y="1676" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">—</text>
+<rect x="630" y="1644" width="240" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="644" y="1676" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">—</text>
+<rect x="870" y="1644" width="650" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="884" y="1676" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[0.585, 1.254]</text>
+<rect x="56" y="1744" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1783" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">05  回到模型与结束状态</text>
+<text x="80" y="1820" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">head 0 输出 [0.585, 1.254]；head 1 输出 [0.832, 0.208]；Concat 后继续残差、FFN 与 LM head。</text>
+<text x="80" y="1854" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">最终选择 EOS=1，普通 Softmax 概率 0.996158；c=4，EOS 不进入下一轮。</text>
+<text x="80" y="1888" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">对照完整输入 [11,10,7,8] 的无缓存重算，缓存与分页结果在浮点误差范围内一致。</text>
+<text x="80" y="1922" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">这是 Dense Attention，分页并没有自动减少应读取的历史 token 数。</text>
+<rect x="56" y="1992" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="2032" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → A 完成；B/C 已加入 → 07：将全过程放回五轮并发调度</text>
+<text x="56" y="2092" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/design/paged_attention/" target="_blank"><text x="56" y="2128" font-size="17" fill="#2563eb">Paged Attention kernel</text></a>
+<a href="https://arxiv.org/html/2309.06180v1" target="_blank"><text x="806" y="2128" font-size="17" fill="#2563eb">PagedAttention paper · §3–5</text></a>
+<a href="https://arxiv.org/abs/2205.14135" target="_blank"><text x="56" y="2159" font-size="17" fill="#2563eb">FlashAttention paper (2022)</text></a>
+</svg>

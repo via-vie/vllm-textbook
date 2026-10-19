@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1835" viewBox="0 0 1600 1835" role="img" aria-labelledby="title2 desc2"><title id="title2">启动引擎：谁在 CPU，谁在 GPU</title><desc id="desc2">执行环境准备一次，再重复处理许多请求；请求之间共享模型权重。。解释每步输入、处理与输出。</desc><defs><marker id="arr2" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1835" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 02 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">启动引擎：谁在 CPU，谁在 GPU</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">执行环境准备一次，再重复处理许多请求；请求之间共享模型权重。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → 检查点 + Tokenizer + dtype / GPU / 并行配置</text>
+<rect x="56" y="284" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  启动时准备可重复使用的资源</text>
+<rect x="80.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">加载模型</text>
+<text x="98.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">读取结构与权重</text>
+<text x="98.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">选择 dtype / 并行切分</text>
+<path d="M400.0 426L447.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr2)"/>
+<rect x="455.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="473.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">规划内存</text>
+<text x="473.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">权重与峰值工作区</text>
+<text x="473.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">剩余预算用于 KV</text>
+<path d="M775.0 426L822.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr2)"/>
+<rect x="830.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="848.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">建立 KV 块池</text>
+<text x="848.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">预留底层张量</text>
+<text x="848.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">按块分配使用权</text>
+<path d="M1150.0 426L1197.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr2)"/>
+<rect x="1205.0" y="360" width="315.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1223.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">编译与预热</text>
+<text x="1223.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">准备适用算子 / 形状</text>
+<text x="1223.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">捕获可复用执行图</text>
+<text x="80" y="558" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">“分配 KV 块”通常是在既有池中分配块 ID，不是每生成一个 token 都做一次 GPU malloc。</text>
+<rect x="56" y="611" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="650" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  V1 典型进程职责：请求向右，结果向左回传</text>
+<rect x="80.0" y="687" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="719" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">API Server / CPU</text>
+<text x="98.0" y="753" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">HTTP / 参数检查</text>
+<text x="98.0" y="783" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">模板、分词与流式返回</text>
+<path d="M525.0 753L572.0 753" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr2)"/>
+<rect x="580.0" y="687" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="719" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">EngineCore / CPU</text>
+<text x="598.0" y="753" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">请求状态、调度与 KV 管理</text>
+<text x="598.0" y="783" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">协调模型执行器</text>
+<path d="M1025.0 753L1072.0 753" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr2)"/>
+<rect x="1080.0" y="687" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="719" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Worker / GPU</text>
+<text x="1098.0" y="753" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">ModelRunner 组织输入</text>
+<text x="1098.0" y="783" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">前向、KV 读写与采样</text>
+<text x="80" y="885" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">单卡主线：1 API + 1 EngineCore + 1 GPU Worker；API 与 EngineCore 典型使用 IPC 消息。</text>
+<rect x="56" y="938" width="1488" height="424" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="977" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  内存中分别存什么</text>
+<rect x="80" y="1014" width="300" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="1046" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">对象</text>
+<rect x="380" y="1014" width="570" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="394" y="1046" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">生命周期</text>
+<rect x="950" y="1014" width="570" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="964" y="1046" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">谁使用</text>
+<rect x="80" y="1068" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1100" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">模型权重</text>
+<rect x="380" y="1068" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="1100" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">长期驻留，各请求共享只读</text>
+<rect x="950" y="1068" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="964" y="1100" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">Linear / Norm / Attention / FFN。</text>
+<rect x="80" y="1122" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1154" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">KV 块池</text>
+<rect x="380" y="1122" width="570" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="394" y="1154" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">底层池长期存在；引用随请求变化</text>
+<rect x="950" y="1122" width="570" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="964" y="1154" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">KV manager 管理；Attention 后端读写。</text>
+<rect x="80" y="1176" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1208" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">请求元数据</text>
+<rect x="380" y="1176" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="1208" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">从到达到结束 / 取消</text>
+<rect x="950" y="1176" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="964" y="1208" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">ID、进度、位置、块表与采样配置。</text>
+<rect x="80" y="1230" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1262" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">中间激活 / 工作区</text>
+<rect x="380" y="1230" width="570" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="394" y="1262" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">在本轮执行中产生并复用</text>
+<rect x="950" y="1230" width="570" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="964" y="1262" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">Q、各层隐藏状态和算子临时结果。</text>
+<rect x="80" y="1284" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1316" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">编译与 CUDA Graph</text>
+<rect x="380" y="1284" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="1316" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">按配置和适用形状复用</text>
+<rect x="950" y="1284" width="570" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="964" y="1316" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">减少执行开销，也占启动时间和内存。</text>
+<rect x="56" y="1384" width="1488" height="192" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1423" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  请求开始运行时</text>
+<text x="80" y="1460" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">Tokenizer 产生 [11,10,7] 后建立请求 A，模型权重无须为 A 重新加载。</text>
+<text x="80" y="1494" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">调度器先决定算哪些位置，KV manager 保证有可写槽位，再让 ModelRunner 执行。</text>
+<text x="80" y="1528" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">多卡部署按并行组增加 Worker；进程数和职责拆分随版本、前端与模型路径变化。</text>
+<rect x="56" y="1598" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1638" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 就绪的 Worker / KV 池与请求 A → 03：建立调度状态</text>
+<text x="56" y="1698" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/design/arch_overview/" target="_blank"><text x="56" y="1734" font-size="17" fill="#2563eb">Architecture Overview</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/torch_compile/" target="_blank"><text x="806" y="1734" font-size="17" fill="#2563eb">torch.compile integration</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/cuda_graphs/" target="_blank"><text x="56" y="1765" font-size="17" fill="#2563eb">CUDA Graphs</text></a>
+</svg>

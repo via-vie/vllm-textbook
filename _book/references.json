@@ -1,0 +1,464 @@
+[
+  {
+    "path": "vllm/v1/executor/uniproc_executor.py",
+    "symbol": "UniProcExecutor._init_executor",
+    "start": 52,
+    "end": 75
+  },
+  {
+    "path": "vllm/v1/engine/core_client.py",
+    "symbol": "EngineCoreClient.make_client",
+    "start": 90,
+    "end": 129
+  },
+  {
+    "path": "vllm/v1/engine/async_llm.py",
+    "symbol": "AsyncLLM.generate",
+    "start": 638,
+    "end": 762
+  },
+  {
+    "path": "vllm/v1/engine/input_processor.py",
+    "symbol": "InputProcessor.assign_request_id",
+    "start": 261,
+    "end": 279
+  },
+  {
+    "path": "vllm/v1/engine/async_llm.py",
+    "symbol": "AsyncLLM._add_request",
+    "start": 507,
+    "end": 527
+  },
+  {
+    "path": "vllm/entrypoints/llm.py",
+    "symbol": "LLM.generate",
+    "start": 418,
+    "end": 481
+  },
+  {
+    "path": "vllm/entrypoints/offline_utils.py",
+    "symbol": "OfflineInferenceMixin._run_engine",
+    "start": 581,
+    "end": 634
+  },
+  {
+    "path": "vllm/entrypoints/launchers/api_server/entry.py",
+    "symbol": "build_async_engine_client_from_engine_args",
+    "start": 66,
+    "end": 112
+  },
+  {
+    "path": "vllm/v1/engine/core.py",
+    "symbol": "EngineCore.__init__",
+    "start": 108,
+    "end": 251
+  },
+  {
+    "path": "vllm/model_executor/models/registry.py",
+    "symbol": "_ModelRegistry.resolve_model_cls",
+    "start": 1371,
+    "end": 1423
+  },
+  {
+    "path": "vllm/v1/worker/gpu_worker.py",
+    "symbol": "Worker.determine_available_memory",
+    "start": 527,
+    "end": 688
+  },
+  {
+    "path": "vllm/v1/engine/core.py",
+    "symbol": "EngineCore._initialize_kv_caches",
+    "start": 253,
+    "end": 383
+  },
+  {
+    "path": "vllm/entrypoints/openai/chat_completion/api_router.py",
+    "symbol": "create_chat_completion",
+    "start": 41,
+    "end": 80
+  },
+  {
+    "path": "vllm/entrypoints/openai/chat_completion/serving.py",
+    "symbol": "OpenAIServingChat._create_chat_completion",
+    "start": 258,
+    "end": 415
+  },
+  {
+    "path": "vllm/renderers/online_renderer.py",
+    "symbol": "OnlineRenderer.render_chat",
+    "start": 170,
+    "end": 271
+  },
+  {
+    "path": "vllm/v1/engine/input_processor.py",
+    "symbol": "InputProcessor.process_inputs",
+    "start": 281,
+    "end": 438
+  },
+  {
+    "path": "vllm/v1/engine/async_llm.py",
+    "symbol": "AsyncLLM.add_request",
+    "start": 361,
+    "end": 505
+  },
+  {
+    "path": "vllm/v1/engine/async_llm.py",
+    "symbol": "AsyncLLM._add_request",
+    "start": 507,
+    "end": 527
+  },
+  {
+    "path": "vllm/v1/engine/core_client.py",
+    "symbol": "AsyncMPClient.add_request_async",
+    "start": 1219,
+    "end": 1222
+  },
+  {
+    "path": "vllm/v1/engine/core.py",
+    "symbol": "EngineCore.preprocess_add_request",
+    "start": 980,
+    "end": 1002
+  },
+  {
+    "path": "vllm/v1/engine/core.py",
+    "symbol": "EngineCoreProc.run_busy_loop",
+    "start": 1402,
+    "end": 1414
+  },
+  {
+    "path": "vllm/v1/engine/core.py",
+    "symbol": "EngineCoreProc._handle_client_request",
+    "start": 1532,
+    "end": 1565
+  },
+  {
+    "path": "vllm/v1/engine/async_llm.py",
+    "symbol": "AsyncLLM._run_output_handler",
+    "start": 764,
+    "end": 846
+  },
+  {
+    "path": "vllm/v1/engine/output_processor.py",
+    "symbol": "RequestOutputCollector",
+    "start": 51,
+    "end": 112
+  },
+  {
+    "path": "vllm/v1/request.py",
+    "symbol": "Request.__init__",
+    "start": 60,
+    "end": 235
+  },
+  {
+    "path": "vllm/v1/core/sched/output.py",
+    "symbol": "SchedulerOutput",
+    "start": 224,
+    "end": 319
+  },
+  {
+    "path": "vllm/v1/core/sched/scheduler.py",
+    "symbol": "Scheduler._update_after_schedule",
+    "start": 1520,
+    "end": 1568
+  },
+  {
+    "path": "vllm/v1/request.py",
+    "symbol": "RequestStatus",
+    "start": 364,
+    "end": 391
+  },
+  {
+    "path": "vllm/v1/engine/core.py",
+    "symbol": "EngineCore.step",
+    "start": 589,
+    "end": 619
+  },
+  {
+    "path": "vllm/v1/worker/gpu/model_runner.py",
+    "symbol": "GPUModelRunner.execute_model",
+    "start": 1630,
+    "end": 1993
+  },
+  {
+    "path": "vllm/v1/worker/gpu/model_runner.py",
+    "symbol": "GPUModelRunner.sample_tokens",
+    "start": 1995,
+    "end": 2181
+  },
+  {
+    "path": "vllm/v1/core/sched/scheduler.py",
+    "symbol": "Scheduler.has_requests",
+    "start": 2671,
+    "end": 2686
+  },
+  {
+    "path": "vllm/v1/core/sched/scheduler.py",
+    "symbol": "Scheduler.schedule",
+    "start": 561,
+    "end": 1456
+  },
+  {
+    "path": "vllm/v1/core/sched/scheduler.py",
+    "symbol": "Scheduler._preempt_request",
+    "start": 1477,
+    "end": 1518
+  },
+  {
+    "path": "vllm/v1/core/kv_cache_manager.py",
+    "symbol": "KVCacheManager.allocate_slots",
+    "start": 370,
+    "end": 601
+  },
+  {
+    "path": "vllm/v1/core/block_pool.py",
+    "symbol": "BlockPool.get_new_blocks",
+    "start": 664,
+    "end": 697
+  },
+  {
+    "path": "vllm/v1/core/kv_cache_utils.py",
+    "symbol": "hash_block_tokens",
+    "start": 638,
+    "end": 665
+  },
+  {
+    "path": "vllm/v1/core/kv_cache_utils.py",
+    "symbol": "generate_block_hash_extra_keys",
+    "start": 600,
+    "end": 635
+  },
+  {
+    "path": "vllm/v1/core/kv_cache_manager.py",
+    "symbol": "KVCacheManager.get_computed_blocks",
+    "start": 265,
+    "end": 321
+  },
+  {
+    "path": "vllm/v1/core/block_pool.py",
+    "symbol": "BlockPool.touch",
+    "start": 749,
+    "end": 764
+  },
+  {
+    "path": "vllm/v1/core/block_pool.py",
+    "symbol": "BlockPool.free_blocks",
+    "start": 770,
+    "end": 800
+  },
+  {
+    "path": "vllm/v1/worker/gpu/model_runner.py",
+    "symbol": "GPUModelRunner.add_requests",
+    "start": 1120,
+    "end": 1175
+  },
+  {
+    "path": "vllm/v1/worker/gpu/model_runner.py",
+    "symbol": "GPUModelRunner.update_requests",
+    "start": 1177,
+    "end": 1215
+  },
+  {
+    "path": "vllm/v1/worker/gpu/model_runner.py",
+    "symbol": "GPUModelRunner.gather_batch_req_state",
+    "start": 1217,
+    "end": 1268
+  },
+  {
+    "path": "vllm/v1/worker/gpu/model_runner.py",
+    "symbol": "GPUModelRunner.prepare_inputs",
+    "start": 1270,
+    "end": 1470
+  },
+  {
+    "path": "vllm/v1/worker/gpu/model_runner.py",
+    "symbol": "GPUModelRunner.prepare_attn",
+    "start": 1472,
+    "end": 1491
+  },
+  {
+    "path": "vllm/model_executor/models/qwen3.py",
+    "symbol": "Qwen3Attention.forward",
+    "start": 153,
+    "end": 170
+  },
+  {
+    "path": "vllm/model_executor/models/qwen3.py",
+    "symbol": "Qwen3DecoderLayer.forward",
+    "start": 226,
+    "end": 246
+  },
+  {
+    "path": "vllm/model_executor/models/qwen3.py",
+    "symbol": "Qwen3ForCausalLM.compute_logits",
+    "start": 330,
+    "end": 335
+  },
+  {
+    "path": "vllm/model_executor/layers/attention/attention.py",
+    "symbol": "Attention.forward",
+    "start": 485,
+    "end": 577
+  },
+  {
+    "path": "vllm/v1/attention/backends/flash_attn.py",
+    "symbol": "FlashAttentionImpl.forward",
+    "start": 1166,
+    "end": 1436
+  },
+  {
+    "path": "vllm/v1/worker/gpu/model_runner.py",
+    "symbol": "GPUModelRunner.sample",
+    "start": 1512,
+    "end": 1588
+  },
+  {
+    "path": "vllm/v1/worker/gpu/sample/sampler.py",
+    "symbol": "Sampler.__call__",
+    "start": 122,
+    "end": 207
+  },
+  {
+    "path": "vllm/v1/worker/gpu/sample/sampler.py",
+    "symbol": "Sampler.apply_sampling_params",
+    "start": 209,
+    "end": 274
+  },
+  {
+    "path": "vllm/v1/worker/gpu/sample/sampler.py",
+    "symbol": "Sampler.sample",
+    "start": 276,
+    "end": 318
+  },
+  {
+    "path": "vllm/v1/core/sched/scheduler.py",
+    "symbol": "Scheduler.update_from_output",
+    "start": 1874,
+    "end": 2291
+  },
+  {
+    "path": "vllm/v1/core/sched/utils.py",
+    "symbol": "check_stop",
+    "start": 94,
+    "end": 136
+  },
+  {
+    "path": "vllm/v1/engine/output_processor.py",
+    "symbol": "OutputProcessor.process_outputs",
+    "start": 629,
+    "end": 758
+  },
+  {
+    "path": "vllm/v1/engine/detokenizer.py",
+    "symbol": "BaseIncrementalDetokenizer.update",
+    "start": 96,
+    "end": 143
+  },
+  {
+    "path": "vllm/v1/core/sched/scheduler.py",
+    "symbol": "Scheduler._request_blocks_can_be_freed",
+    "start": 2603,
+    "end": 2608
+  },
+  {
+    "path": "vllm/v1/core/sched/scheduler.py",
+    "symbol": "Scheduler._free_request",
+    "start": 2561,
+    "end": 2588
+  },
+  {
+    "path": "vllm/config/vllm.py",
+    "symbol": "VllmConfig.max_concurrent_batches",
+    "start": 588,
+    "end": 599
+  },
+  {
+    "path": "vllm/v1/engine/core.py",
+    "symbol": "EngineCore.step_with_batch_queue",
+    "start": 630,
+    "end": 744
+  },
+  {
+    "path": "vllm/v1/core/sched/async_scheduler.py",
+    "symbol": "AsyncScheduler._update_after_schedule",
+    "start": 19,
+    "end": 49
+  },
+  {
+    "path": "vllm/v1/worker/gpu_worker.py",
+    "symbol": "Worker.init_device",
+    "start": 359,
+    "end": 492
+  },
+  {
+    "path": "tests/v1/core/test_deferred_block_free.py",
+    "symbol": "test_non_async_abort_defers_via_last_sched_seq",
+    "start": 451,
+    "end": 485
+  },
+  {
+    "path": "vllm/v1/worker/gpu/cudagraph_utils.py",
+    "symbol": "CudaGraphManager.dispatch",
+    "start": 496,
+    "end": 527
+  },
+  {
+    "path": "vllm/v1/worker/gpu/cudagraph_utils.py",
+    "symbol": "CudaGraphManager.run_fullgraph",
+    "start": 529,
+    "end": 542
+  },
+  {
+    "path": "vllm/model_executor/layers/linear.py",
+    "symbol": "ColumnParallelLinear",
+    "start": 429,
+    "end": 625
+  },
+  {
+    "path": "vllm/model_executor/layers/linear.py",
+    "symbol": "RowParallelLinear.forward",
+    "start": 1757,
+    "end": 1783
+  },
+  {
+    "path": "vllm/model_executor/models/qwen3.py",
+    "symbol": "Qwen3Attention.__init__",
+    "start": 66,
+    "end": 151
+  },
+  {
+    "path": "vllm/model_executor/layers/quantization/base_config.py",
+    "symbol": "QuantizationConfig",
+    "start": 100,
+    "end": 282
+  },
+  {
+    "path": "vllm/config/speculative.py",
+    "symbol": "SpeculativeConfig",
+    "start": 374,
+    "end": 1966
+  },
+  {
+    "path": "tests/v1/core/test_scheduler.py",
+    "symbol": "test_schedule_partial_requests",
+    "start": 349,
+    "end": 409
+  },
+  {
+    "path": "vllm/distributed/kv_transfer/kv_connector/v1/base.py",
+    "symbol": "KVConnectorBase_V1",
+    "start": 185,
+    "end": 760
+  },
+  {
+    "path": "tests/v1/engine/test_output_processor.py",
+    "symbol": "test_stop_string",
+    "start": 867,
+    "end": 1004
+  },
+  {
+    "path": "vllm/v1/engine/core.py",
+    "symbol": "EngineCore.step",
+    "start": 589,
+    "end": 619
+  }
+]

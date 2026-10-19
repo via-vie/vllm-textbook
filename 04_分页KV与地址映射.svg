@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1882" viewBox="0 0 1600 1882" role="img" aria-labelledby="title4 desc4"><title id="title4">KV 分页：逻辑连续，物理可以不连续</title><desc id="desc4">地址间接层把请求位置与底层存储分开；无需为每条请求预留一整段连续 KV。。解释每步输入、处理与输出。</desc><defs><marker id="arr4" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1882" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 04 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">KV 分页：逻辑连续，物理可以不连续</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">地址间接层把请求位置与底层存储分开；无需为每条请求预留一整段连续 KV。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → A 需要位置 0、1、2；b=2；预留的物理块池共 12 块</text>
+<rect x="56" y="284" width="1488" height="318" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  按 token 位置分块，每个槽实际放的是向量</text>
+<rect x="80" y="360" width="242" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="201.0" y="395" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">p0 / 小猫</text>
+<rect x="330" y="360" width="242" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="451.0" y="395" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">p1 / 喜欢</text>
+<rect x="580" y="360" width="242" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="701.0" y="395" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">p2 / 吃</text>
+<rect x="830" y="360" width="242" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="951.0" y="395" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">p3 / 待计算</text>
+<rect x="80" y="440" width="492" height="86" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="98" y="472" font-size="22" fill="#087f8c" font-weight="700" text-anchor="start">逻辑块 ℓ0：位置 [0,1]</text>
+<rect x="580" y="440" width="492" height="86" rx="12" fill="#fff1df" stroke="#d9e3ee"/>
+<text x="598" y="472" font-size="22" fill="#b65c12" font-weight="700" text-anchor="start">逻辑块 ℓ1：位置 [2,3]</text>
+<text x="80" y="571" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">每 token 每层保存 K[2,2] + V[2,2]，共 8 个数；不是把 ID 复制进显存就得到 KV。</text>
+<rect x="56" y="624" width="1488" height="390" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="663" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  A 的 block_table=[5,1]，只存物理块编号</text>
+<rect x="80" y="700" width="390" height="100" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="98" y="732" font-size="22" fill="#087f8c" font-weight="700" text-anchor="start">逻辑块 0 → 物理块 5</text>
+<text x="98" y="766" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">存 p0,p1</text>
+<rect x="80" y="840" width="390" height="100" rx="12" fill="#fff1df" stroke="#d9e3ee"/>
+<text x="98" y="872" font-size="22" fill="#b65c12" font-weight="700" text-anchor="start">逻辑块 1 → 物理块 1</text>
+<text x="98" y="906" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">存 p2,p3</text>
+<rect x="610" y="700" width="280" height="96" rx="12" fill="#f4f6f9" stroke="#d9e3ee"/>
+<text x="628" y="732" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">物理块 0</text>
+<text x="628" y="766" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">空闲</text>
+<rect x="910" y="700" width="280" height="96" rx="12" fill="#fff1df" stroke="#d9e3ee"/>
+<text x="928" y="732" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">物理块 1</text>
+<text x="928" y="766" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">p2,空槽</text>
+<rect x="1210" y="700" width="280" height="96" rx="12" fill="#f4f6f9" stroke="#d9e3ee"/>
+<text x="1228" y="732" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">物理块 2</text>
+<text x="1228" y="766" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">空闲</text>
+<rect x="610" y="830" width="280" height="96" rx="12" fill="#f4f6f9" stroke="#d9e3ee"/>
+<text x="628" y="862" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">物理块 3</text>
+<text x="628" y="896" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">空闲</text>
+<rect x="910" y="830" width="280" height="96" rx="12" fill="#f4f6f9" stroke="#d9e3ee"/>
+<text x="928" y="862" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">物理块 4</text>
+<text x="928" y="896" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">空闲</text>
+<rect x="1210" y="830" width="280" height="96" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="1228" y="862" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">物理块 5</text>
+<text x="1228" y="896" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">p0,p1</text>
+<path d="M480 745L1200 875" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr4)"/>
+<path d="M480 885L900 745" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr4)"/>
+<text x="80" y="983" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">图只画块 0–5；还有块 6–11。块 1 和块 5 无须搬到相邻地址。</text>
+<rect x="56" y="1036" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1075" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  位置 p → 逻辑块 → 物理块 → 槽位</text>
+<rect x="80" y="1112" width="240" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="1144" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">p</text>
+<rect x="320" y="1112" width="250" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="334" y="1144" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">ℓ=⌊p/b⌋</text>
+<rect x="570" y="1112" width="300" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="584" y="1144" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">offset=p mod b</text>
+<rect x="870" y="1112" width="300" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="884" y="1144" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">phys=table[ℓ]</text>
+<rect x="1170" y="1112" width="350" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1184" y="1144" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">slot=phys×b+offset</text>
+<rect x="80" y="1166" width="240" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1198" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="320" y="1166" width="250" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="334" y="1198" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="570" y="1166" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="584" y="1198" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="870" y="1166" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="884" y="1198" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">5</text>
+<rect x="1170" y="1166" width="350" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1184" y="1198" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">10</text>
+<rect x="80" y="1220" width="240" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1252" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="320" y="1220" width="250" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="334" y="1252" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="570" y="1220" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="584" y="1252" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="870" y="1220" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="884" y="1252" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">5</text>
+<rect x="1170" y="1220" width="350" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1184" y="1252" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">11</text>
+<rect x="80" y="1274" width="240" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1306" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">2</text>
+<rect x="320" y="1274" width="250" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="334" y="1306" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="570" y="1274" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="584" y="1306" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">0</text>
+<rect x="870" y="1274" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="884" y="1306" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="1170" y="1274" width="350" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1184" y="1306" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">2</text>
+<rect x="80" y="1328" width="240" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1360" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">3（下轮）</text>
+<rect x="320" y="1328" width="250" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="334" y="1360" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="570" y="1328" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="584" y="1360" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="870" y="1328" width="300" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="884" y="1360" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">1</text>
+<rect x="1170" y="1328" width="350" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1184" y="1360" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">3</text>
+<rect x="56" y="1428" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1467" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  当前写入与历史读取</text>
+<text x="80" y="1504" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">写新 KV：slot_mapping=[10,11,2]，每层把当前 K/V scatter 到对应物理位置。</text>
+<text x="80" y="1538" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">读旧 KV：Attention 通过 block_table 和有效长度，按逻辑顺序找到每个位置的向量。</text>
+<text x="80" y="1572" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">内核可直接读取分页缓存；图中“拼成矩阵”只为推导，不表示每轮先复制完整历史。</text>
+<text x="80" y="1606" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">每层都保存自己的 KV；分页仍有尾块未用槽与元数据开销，不会消除全部显存成本。</text>
+<rect x="56" y="1676" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1716" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → A table=[5,1]、R1 slots=[10,11,2] → 05：执行 Prefill</text>
+<text x="56" y="1776" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://arxiv.org/html/2309.06180v1" target="_blank"><text x="56" y="1812" font-size="17" fill="#2563eb">PagedAttention paper · §3–5</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/paged_attention/" target="_blank"><text x="806" y="1812" font-size="17" fill="#2563eb">Paged Attention kernel</text></a>
+</svg>

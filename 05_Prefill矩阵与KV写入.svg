@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1715" viewBox="0 0 1600 1715" role="img" aria-labelledby="title5 desc5"><title id="title5">Prefill：ID、位置和槽位一起交给模型</title><desc id="desc5">沿用上级模型的实际矩阵；分页改变摆放方式，前向仍按模型结构执行。。解释每步输入、处理与输出。</desc><defs><marker id="arr5" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1715" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 05 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">Prefill：ID、位置和槽位一起交给模型</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">沿用上级模型的实际矩阵；分页改变摆放方式，前向仍按模型结构执行。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → R1 IDs=[11,10,7]；positions=[0,1,2]；slots=[10,11,2]</text>
+<rect x="56" y="284" width="1488" height="302" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  Embedding 查表：ID 变成 D=4 的行向量</text>
+<text x="80" y="358" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">H = E[[11,10,7]]，形状 [3,4]</text>
+<rect x="80" y="360" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="388.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.000</text>
+<rect x="210" y="360" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="388.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="340" y="360" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="405.0" y="388.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.000</text>
+<rect x="470" y="360" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="535.0" y="388.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="80" y="404" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="432.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="210" y="404" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="432.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.000</text>
+<rect x="340" y="404" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="405.0" y="432.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="470" y="404" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="535.0" y="432.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.000</text>
+<rect x="80" y="448" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="476.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.000</text>
+<rect x="210" y="448" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="476.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.000</text>
+<rect x="340" y="448" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="405.0" y="476.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="470" y="448" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="535.0" y="476.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="760" y="360" width="740" height="155" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="778" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">每一行的身份始终一致</text>
+<text x="778" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">第 0 行：小猫 / p0 / 槽10</text>
+<text x="778" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">第 1 行：喜欢 / p1 / 槽11</text>
+<text x="778" y="486" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">第 2 行：吃 / p2 / 槽2</text>
+<text x="80" y="555" font-size="22" fill="#087f8c" font-weight="400" text-anchor="start">RMSNorm → Q/K/V 投影 → 拆成 2 头；Q/K 用各自位置做 RoPE；V 不做 RoPE。</text>
+<rect x="56" y="608" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="647" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  head 0 的 Prefill K/V：这些真实数值将被缓存</text>
+<text x="80" y="682" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">K₀ [3,2]，已经过 RoPE</text>
+<rect x="80" y="684" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="712.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="210" y="684" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="712.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="80" y="728" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="756.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.764</text>
+<rect x="210" y="728" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="756.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.190</text>
+<rect x="80" y="772" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="800.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">-1.874</text>
+<rect x="210" y="772" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="800.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.697</text>
+<text x="580" y="682" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">V₀ [3,2]，对应同样槽位</text>
+<rect x="580" y="684" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="645.0" y="712.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="710" y="684" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="775.0" y="712.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="580" y="728" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="645.0" y="756.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="710" y="728" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="775.0" y="756.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="580" y="772" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="645.0" y="800.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<rect x="710" y="772" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="775.0" y="800.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.414</text>
+<text x="1000" y="709" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">head 1 也有独立 K/V。</text>
+<text x="1000" y="744" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">Q 只供本轮 Attention。</text>
+<text x="1000" y="779" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">历史 Q 通常不缓存。</text>
+<text x="1000" y="814" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">完整矩阵见 _data。</text>
+<text x="80" y="882" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">在多层模型中，每层都重复此过程；该层 KV 来自该层输入，不能只存最后一层。</text>
+<rect x="56" y="935" width="1488" height="304" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="974" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  因果 Attention：多行并行，也不能看未来</text>
+<text x="80" y="1009" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">head 0 的 P=softmax(mask(QKᵀ/√2))</text>
+<rect x="80" y="1011" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="1039.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">1.000</text>
+<rect x="210" y="1011" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="1039.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="340" y="1011" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="405.0" y="1039.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="80" y="1055" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="1083.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.682</text>
+<rect x="210" y="1055" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="1083.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.318</text>
+<rect x="340" y="1055" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="405.0" y="1083.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.000</text>
+<rect x="80" y="1099" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="145.0" y="1127.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.103</text>
+<rect x="210" y="1099" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="275.0" y="1127.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.033</text>
+<rect x="340" y="1099" width="130" height="44" rx="0" fill="#f4f8ff" stroke="#d9e3ee"/>
+<text x="405.0" y="1127.6" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle" class="mono">0.864</text>
+<text x="650" y="1036" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">p0 只读 [0]；p1 读 [0,1]；p2 读 [0,1,2]。</text>
+<text x="650" y="1075" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">Attention → Concat → W_O → 残差。</text>
+<text x="650" y="1114" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">RMSNorm → SwiGLU FFN → 残差 → 最终归一化。</text>
+<text x="650" y="1153" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">形状：[3,4] → [3,2,2] → 合并回 [3,4]。</text>
+<text x="80" y="1208" font-size="22" fill="#087f8c" font-weight="400" text-anchor="start">批量并行是同时计算多行；因果 mask 保证每行只依赖合法上下文。</text>
+<rect x="56" y="1261" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1300" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  取 Prompt 最后一行，预测下一个 ID</text>
+<text x="80" y="1337" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">尾行最终隐藏状态 [1,4] × W_lm[4,12] → logits[1,12]。</text>
+<text x="80" y="1371" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">本例 temperature=0 取 argmax，选择 ID8“鱼”；其普通 Softmax 概率是 0.988102。</text>
+<text x="80" y="1405" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">8 可立即反分词为“鱼”并发送；A 的 c=3，known_ids 已成为 [11,10,7,8]。</text>
+<text x="80" y="1439" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">刚生成的 8 还没有 KV；下轮计算 p3 才会产生它的 K/V。</text>
+<rect x="56" y="1509" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1549" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 缓存 p0–p2、采样 ID8 → 06：输入 8，分页读历史并 Decode</text>
+<text x="56" y="1609" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/design/paged_attention/" target="_blank"><text x="56" y="1645" font-size="17" fill="#2563eb">Paged Attention kernel</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/arch_overview/" target="_blank"><text x="806" y="1645" font-size="17" fill="#2563eb">Architecture Overview</text></a>
+</svg>

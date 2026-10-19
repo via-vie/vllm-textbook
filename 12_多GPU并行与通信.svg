@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2074" viewBox="0 0 1600 2074" role="img" aria-labelledby="title12 desc12"><title id="title12">多 GPU：切权重、切层，还是复制模型</title><desc id="desc12">模型并行让一条请求跨设备执行；数据并行把不同请求交给不同实例。。解释每步输入、处理与输出。</desc><defs><marker id="arr12" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="2074" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 12 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">多 GPU：切权重、切层，还是复制模型</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">模型并行让一条请求跨设备执行；数据并行把不同请求交给不同实例。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → 权重单卡装不下，或需要更高的服务吞吐</text>
+<rect x="56" y="284" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  TP：同一层的矩阵切到多张 GPU</text>
+<rect x="80.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">共同输入 H [N,D]</text>
+<text x="98.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">同一批请求的隐藏状态</text>
+<text x="98.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">按需要广播或保持副本</text>
+<path d="M525.0 426L572.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr12)"/>
+<rect x="580.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">GPU0 / GPU1 分片</text>
+<text x="598.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">投影 / FFN 分别计算</text>
+<text x="598.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">得到局部中间结果</text>
+<path d="M1025.0 426L1072.0 426" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr12)"/>
+<rect x="1080.0" y="360" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="392" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">组合分片结果</text>
+<text x="1098.0" y="426" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">典型行并行 Y=Σ H_rW_r</text>
+<text x="1098.0" y="456" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">需要 collective 通信</text>
+<text x="80" y="558" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">KV 可按 heads 分片；KV head 数与 TP 不匹配时可复制，不能一律把 KV 容量直接除以 TP。</text>
+<rect x="56" y="611" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="650" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  PP：不同层放到不同 GPU，传递隐藏状态</text>
+<rect x="80.0" y="687" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="719" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">GPU0：层0…15</text>
+<text x="98.0" y="753" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">处理上半段网络</text>
+<text x="98.0" y="783" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">本地保存这些层的 KV</text>
+<path d="M525.0 753L572.0 753" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr12)"/>
+<rect x="580.0" y="687" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="719" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">GPU1：层16…31</text>
+<text x="598.0" y="753" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">接收隐藏状态</text>
+<text x="598.0" y="783" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">保存后续层 KV 并计算</text>
+<path d="M1025.0 753L1072.0 753" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr12)"/>
+<rect x="1080.0" y="687" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="719" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">输出阶段</text>
+<text x="1098.0" y="753" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">完成最后归一化与输出</text>
+<text x="1098.0" y="783" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">向调度器返回结果</text>
+<text x="80" y="885" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">单请求仍穿过多个阶段；通信延迟、流水空泡与微批大小会影响效率。</text>
+<rect x="56" y="938" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="977" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  DP：复制模型组，分流不同请求</text>
+<rect x="80.0" y="1014" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="1046" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">请求路由</text>
+<text x="98.0" y="1080" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">A / B / C 到达</text>
+<text x="98.0" y="1110" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">观察队列和负载</text>
+<path d="M525.0 1080L572.0 1080" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr12)"/>
+<rect x="580.0" y="1014" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="1046" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">DP rank0</text>
+<text x="598.0" y="1080" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">一套模型或 TP 组</text>
+<text x="598.0" y="1110" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">本地 EngineCore / KV</text>
+<path d="M1025.0 1080L1072.0 1080" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr12)"/>
+<rect x="1080.0" y="1014" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="1046" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">DP rank1</text>
+<text x="1098.0" y="1080" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">另一套模型或 TP 组</text>
+<text x="1098.0" y="1110" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">处理另一批请求</text>
+<text x="80" y="1212" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">本地 APC 通常属于各自副本；把 B 发到没有 A 前缀的实例可能错失命中。</text>
+<rect x="56" y="1265" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1304" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  需求与代价要一起看</text>
+<rect x="80" y="1341" width="380" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="1373" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">需求</text>
+<rect x="460" y="1341" width="510" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="474" y="1373" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">常见方向</text>
+<rect x="970" y="1341" width="550" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="984" y="1373" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">要核对</text>
+<rect x="80" y="1395" width="380" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1427" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">单卡放不下权重</text>
+<rect x="460" y="1395" width="510" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="474" y="1427" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">TP / PP 与权重量化</text>
+<rect x="970" y="1395" width="550" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="984" y="1427" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">互联、层结构、切分粒度、实际内存。</text>
+<rect x="80" y="1449" width="380" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1481" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">模型单卡能装下，扩吞吐</text>
+<rect x="460" y="1449" width="510" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="474" y="1481" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">增加 DP 副本并合理路由</text>
+<rect x="970" y="1449" width="550" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="984" y="1481" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">权重复制与局部前缀命中变化。</text>
+<rect x="80" y="1503" width="380" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1535" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">MoE 专家层</text>
+<rect x="460" y="1503" width="510" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="474" y="1535" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">EP 将专家分布到设备</text>
+<rect x="970" y="1503" width="550" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="984" y="1535" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">token 路由与 all-to-all，不等于 Dense TP。</text>
+<rect x="80" y="1557" width="380" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1589" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">DP2 × TP2 × PP1</text>
+<rect x="460" y="1557" width="510" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="474" y="1589" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">示意需要4个 GPU Worker</text>
+<rect x="970" y="1557" width="550" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="984" y="1589" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">每个 DP 副本拥有自己的引擎与 TP 组。</text>
+<rect x="56" y="1657" width="1488" height="158" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1696" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">05  回到请求 A 的块表</text>
+<text x="80" y="1733" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">各 Worker 保存属于自己的权重和 KV 分片；同一请求需要并行组内协同，而不是任意一张卡单独完成。</text>
+<text x="80" y="1767" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">本教程 D=4、h=2 只是尺寸教学例子，不声称可直接部署成生产级多 GPU 模型。</text>
+<rect x="56" y="1837" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1877" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 多卡执行组与通信代价 → 13：比较其他可选优化</text>
+<text x="56" y="1937" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/serving/parallelism_scaling/" target="_blank"><text x="56" y="1973" font-size="17" fill="#2563eb">Parallelism and Scaling</text></a>
+<a href="https://docs.vllm.ai/en/stable/configuration/optimization/" target="_blank"><text x="806" y="1973" font-size="17" fill="#2563eb">Optimization and Tuning</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/arch_overview/" target="_blank"><text x="56" y="2004" font-size="17" fill="#2563eb">Architecture Overview</text></a>
+</svg>

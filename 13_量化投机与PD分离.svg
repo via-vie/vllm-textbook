@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2039" viewBox="0 0 1600 2039" role="img" aria-labelledby="title13 desc13"><title id="title13">进阶优化：精度、生成轮次与 P/D 分离</title><desc id="desc13">沿同一请求链说明收益从何而来，并给出额外计算、内存或传输成本。。解释每步输入、处理与输出。</desc><defs><marker id="arr13" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="2039" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 13 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">进阶优化：精度、生成轮次与 P/D 分离</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">沿同一请求链说明收益从何而来，并给出额外计算、内存或传输成本。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → 已知权重、KV、执行与调度成本，继续寻找容量和延迟改进</text>
+<rect x="56" y="284" width="1488" height="346" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  权重量化和 KV 量化，压缩的不是同一对象</text>
+<rect x="80" y="360" width="300" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">对象</text>
+<rect x="380" y="360" width="670" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="394" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">改变什么</text>
+<rect x="1050" y="360" width="470" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1064" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">边界</text>
+<rect x="80" y="414" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">权重量化</text>
+<rect x="380" y="414" width="670" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">压缩权重，使用兼容量化 GEMM / 反量化路径</text>
+<rect x="1050" y="414" width="470" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1064" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">不能直接等同 KV 容量减半。</text>
+<rect x="80" y="468" width="300" height="84" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">KV 量化</text>
+<rect x="380" y="468" width="670" height="84" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="394" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">用低精度保存 K/V，附带需要的缩放信息</text>
+<rect x="1050" y="468" width="470" height="84" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1064" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">2 bytes→1 byte 时数据部分约减半，还需 s</text>
+<text x="1064" y="530" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">cale/对齐。</text>
+<rect x="80" y="552" width="300" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="584" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">输出与速度</text>
+<rect x="380" y="552" width="670" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="394" y="584" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">精度、缩放策略和内核支持决定效果</text>
+<rect x="1050" y="552" width="470" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1064" y="584" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">近似存储可能影响输出；不承诺固定加速倍数。</text>
+<rect x="56" y="652" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="691" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  投机生成：先提出多个候选，再由目标模型验证</text>
+<rect x="80.0" y="728" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="760" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Draft / 提议器</text>
+<text x="98.0" y="794" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">提出 [t1,t2,t3]</text>
+<text x="98.0" y="824" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">成本要足够低</text>
+<path d="M525.0 794L572.0 794" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr13)"/>
+<rect x="580.0" y="728" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="760" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Target / 验证</text>
+<text x="598.0" y="794" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">一次前向检查多个位置</text>
+<text x="598.0" y="824" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">得到目标模型分布</text>
+<path d="M1025.0 794L1072.0 794" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr13)"/>
+<rect x="1080.0" y="728" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="760" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">接受与修正</text>
+<text x="1098.0" y="794" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">接受连续合法候选</text>
+<text x="1098.0" y="824" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">更新输出、进度与 KV</text>
+<text x="80" y="926" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">A 的 [鱼,EOS] 主线未启用投机；t1/t2/t3 仅为解释机制的符号。</text>
+<rect x="56" y="979" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1018" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  正确性与收益条件</text>
+<text x="80" y="1055" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">贪心验证可比对目标选择；随机采样需正确的接受/拒绝与修正采样，不能只比 argmax。</text>
+<text x="80" y="1089" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">正确投机算法可保持目标分布，但不同精度与 kernel 的细小数值差异仍需按实现评估。</text>
+<text x="80" y="1123" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">被拒绝候选的后续状态必须回收或覆盖，调度也可能需要额外 lookahead 空间。</text>
+<text x="80" y="1157" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">接受率低、batch 已饱和或提议器昂贵时，额外工作可能抵消少调用几轮的收益。</text>
+<rect x="56" y="1227" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1266" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  Prefill / Decode 分离：在两组设备交接状态</text>
+<rect x="80.0" y="1303" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="1335" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Prefill 池 P</text>
+<text x="98.0" y="1369" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">处理 Prompt 并产生 KV</text>
+<text x="98.0" y="1399" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">准备必要的首 token 状态</text>
+<path d="M525.0 1369L572.0 1369" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr13)"/>
+<rect x="580.0" y="1303" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="1335" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">KV Connector</text>
+<text x="598.0" y="1369" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">传输与布局交接</text>
+<text x="598.0" y="1399" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">源块 ID 不等于目标块 ID</text>
+<path d="M1025.0 1369L1072.0 1369" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr13)"/>
+<rect x="1080.0" y="1303" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="1335" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Decode 池 D</text>
+<text x="1098.0" y="1369" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">目标侧分配自己的槽位</text>
+<text x="1098.0" y="1399" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">取得状态后继续生成</text>
+<text x="80" y="1501" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">传输有效 KV 量约 N×2Lh_kvds；首 token 在哪侧采样、怎样交接取决于实现。</text>
+<rect x="56" y="1554" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1593" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">05  为什么分离也有成本</text>
+<text x="80" y="1630" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">P/D 需保持一致的 token 位置和模型状态语义；分离不是把块表整数发给另一张 GPU 就完成。</text>
+<text x="80" y="1664" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">A 仅3-token Prompt，图只展示交接；网络、同步和传输可能比它的计算还昂贵。</text>
+<text x="80" y="1698" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">长 Prompt 与长 Decode 混合时可分别扩容、降低相互干扰；收益需要覆盖 KV 搬运成本。</text>
+<text x="80" y="1732" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">官方将 P/D 功能标为实验性质；需匹配 connector、设备和布局，不是所有配置都会更快。</text>
+<rect x="56" y="1802" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1842" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 各机制的收益与额外成本 → 14：用完整链路指标检验</text>
+<text x="56" y="1902" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/features/quantization/quantized_kvcache/" target="_blank"><text x="56" y="1938" font-size="17" fill="#2563eb">Quantized KV Cache</text></a>
+<a href="https://docs.vllm.ai/en/stable/features/speculative_decoding/" target="_blank"><text x="806" y="1938" font-size="17" fill="#2563eb">Speculative Decoding</text></a>
+<a href="https://arxiv.org/abs/2211.17192" target="_blank"><text x="56" y="1969" font-size="17" fill="#2563eb">Speculative Decoding paper</text></a>
+<a href="https://docs.vllm.ai/en/stable/features/disagg_prefill/" target="_blank"><text x="806" y="1969" font-size="17" fill="#2563eb">Disaggregated Prefilling</text></a>
+</svg>

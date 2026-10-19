@@ -1,0 +1,1034 @@
+@chapter 01|一、建立共同语言|让模型回答问题，还缺什么
+@lead 能把“模型算答案”和“系统安排计算”分开，知道一条请求大致要经过哪些地方。
+## 1.1 先让模型接着说一句话
+我们从一个很小的任务开始。输入“小猫喜欢吃”，让模型接着生成“鱼”，然后结束。
+
+计算机接收的不是汉字本身，而是一串整数。分词器把文本拆成 token，也就是模型使用的文本单位，再查出每个单位的编号。在本书的小词表里，“小猫”“喜欢”“吃”分别对应 11、10、7。因此，这条输入写成 [11,10,7]。
+
+模型根据这些编号计算下一 token 的分数，再由生成规则选出一个编号。本例第一次选出 8，表示“鱼”；下一次选出 1，表示结束标记 EOS。你已经知道了我们最终想得到的结果。接下来要研究的是：为了得到它，系统中究竟发生了什么？
+
+@note 关于这个小例子|[11,10,7] 只属于本书的教学词表。真实 Qwen3 使用自己的分词器和聊天模板，输入编号与生成结果都需要实际检查。
+## 1.2 如果只有一个模型函数
+先假设我们已有一个函数，它能执行 Transformer。把当前输入、位置和历史信息交给它，就能得到下一 token 的分数。到这里，模型的工作已经可以描述清楚了。
+
+但把它放进一个服务后，很快会遇到新问题。A 的输入很短，B 一次发来几千个 token：先处理谁？两条请求能不能一起算？B 的输入还没算完时，A 能不能先生成下一个字？
+
+还有显存问题。生成越长，保存的历史信息通常越多。如果显存快满了，应该让新请求等待，还是暂时停下某条请求？用户中途关闭页面后，之前占用的空间由谁归还？
+
+这些问题需要推理系统来处理。vLLM 就在模型周围安排请求、管理显存、组织 GPU 计算，并把结果交回对应用户。模型权重决定语言能力；系统的组织方式影响资源使用、吞吐和延迟。
+
+@pause 生成出“鱼”以后，下一次是否还需要知道“小猫喜欢吃”？|需要知道这段历史的影响。KV cache 会保存各层已经计算好的 K/V 中间结果，让后续生成可以复用。第 7–14 章会把它的内容、地址和使用过程拆开说明。
+## 1.3 先认三个位置
+看下面的图时，先只认三列：左边接收和返回请求，中间安排计算，右边执行 GPU 运算。沿编号 ① 到 ⑧ 走一遍即可，暂时不必记住每个类名。
+
+@figure architecture
+
+左边叫前端。它把用户请求整理成模型输入，并把生成编号解码成文本。中间的 EngineCore 是引擎核心，决定本轮安排哪些请求、各算多少 token。右边的 GPU 保存权重和历史 KV，并执行模型算子。
+
+中间还会看到 Executor、Worker 和 Model Runner。可以先按工作记：Executor 负责调用执行端，Worker 管理设备，Model Runner 把本轮计划变成 GPU 所需的输入。在本书的单卡 uni 路径中，它们是核心进程里的对象。
+
+有一点请现在就分清：CPU 上的“物理块 7”是地址和所有权记录；GPU 上的块 7 里才存着具体 K/V 数值。就像知道一个数组的下标，并不等于已经算出了该位置的值。
+## 1.4 同一条请求怎样走完
+现在用 A 来串起这三个位置。前端先把“小猫喜欢吃”变成输入编号，送到核心。核心把 A 放进等待队列，再决定这一轮执行它。执行端组织输入，GPU 完成模型计算，采样器选出“鱼”。
+
+结果回来后，核心把“鱼”的编号加进 A 的历史；前端将它显示给用户。只要还没满足停止条件，这个过程就继续。下一轮选出 EOS 后，A 结束，相关状态和空间按各自规则清理。
+
+这就是后面所有章节共同追踪的过程。英文类名会逐个出场，我们会在它出现时解释职责，并指出它接过什么、交出什么。
+
+同样的核心也能用于离线生成。LLM.generate 提交输入后，持续推进引擎，等完成再汇总结果。在线多了 HTTP 与流式输出，但两者可以共享调度、缓存和模型执行部分。
+
+@walk exe|UniProcExecutor._init_executor|想确认单卡执行端在哪里创建，可以打开这里。先找 WorkerWrapperBase，再看设备初始化和模型加载的顺序。
+@walk client|EngineCoreClient.make_client|想确认是否跨进程，可以看这里如何按 multiprocess_mode 与 asyncio_mode 选择客户端。第 6 章再把消息路径展开。
+## 1.5 先看见过程，再读代码
+第一次阅读，可以先点击页顶“CPU 实验与网页演示”，打开请求的逐步演示。把 A 从提交看到结束，暂时只观察输入、输出和状态如何变化。
+
+希望在终端重新计算时，在本目录执行：
+~~~
+python labs/run.py trace
+~~~
+程序会用固定的微型 Transformer 权重执行前向，选出鱼 8、EOS 1，并输出教学状态账本。模型数值来自实际训练结果；调度部分是为了说明机制而写的模拟。真正的 vLLM/A100 实验留到第 21 章。
+
+@note 本书采用的源码与范围|源码固定为 v0.30.0 / ced6857。先走单卡、普通文本、同步调度、eager 执行；异步、多卡等特性随后加入。完整提交身份和快照边界放在第 3 章，查资料时再展开即可。
+@exercise 为什么可以更换推理框架而继续使用同一份模型权重？
+@answer 权重规定模型函数；推理框架安排计算、内存和输出。兼容实现应保持数学语义，但精度、量化、采样与后端可能影响数值，不能因此承诺逐位相同。
+@exercise 单卡在线服务中，是否一定有“API、EngineCore、GPU Worker”三个独立进程？
+@answer 不一定。本书单卡 uni 路径中的 Worker 是核心进程内的对象。GPU 是设备，不是一个 Python 进程；多卡和其他执行器会改变进程边界。
+@exercise 用一句话区分块号和 KV 内容。
+@answer 块号告诉系统数据放在哪里、由谁使用；KV 内容是模型算子写到那个位置的实际数值。
+@next 下一章先解决一个读源码时常见的疑问：为什么请求已经发出，Python 代码却还能接着做别的事？
+
+@chapter 02|一、建立共同语言|请求发出后，代码为什么还能往下走
+@lead 能区分普通返回、异步生成、Future 和进程消息，知道一次“返回”到底意味着什么。
+## 2.1 “拿到答案”和“拿到一个等待结果的对象”
+先看两种调用方式。第一种等全部文本生成完，再拿到最终结果。第二种允许你先拿到“鱼”，稍后继续接收更多输出。它们最终都可能使用同一个模型，但调用者接收结果的方式不同。
+
+普通函数调用会返回一个值。异步生成器则可以分次产生值：每次执行到 yield，交出当前结果，之后还可以继续。调用者用 async for 逐次接收。AsyncLLM.generate 就属于后一种。
+
+因此，看到 generate 这个名字时，先别猜它“一次返回什么”。要看它是普通函数、协程，还是异步生成器。这个判断会决定你应该怎样调用它、怎样处理结束与取消。
+
+@walk async|AsyncLLM.generate|先在完整函数中找 yield。然后只追 add_request → 等待 collector → yield → finished 判断这条普通生成路径。
+## 2.2 await 等待的是什么
+假设 A 已经提交，前端暂时没有收到它的输出。前端可以 await 一个等待结果的对象，并在这段时间让事件循环处理其他连接。数据到达后，原任务再继续。
+
+这里的 await 只说明“等待这个对象”。它可能等待队列、网络或线程结果。要判断 GPU 是否完成，还得继续看这个等待对象是由谁完成的。
+
+同样，async 不会自动创建一个新进程。一个进程可以在事件循环里交错处理许多等待中的任务；而两个进程拥有不同的内存空间。这两个层次应分别画在图上。
+
+@pause 代码里出现 await，能直接在旁边写“GPU 已完成”吗？|还不能。先追到被等待的对象：它可能只是发送请求成功，也可能代表一轮执行结果可用。只有具体协议才能告诉你完成边界在哪里。
+## 2.3 Future：先保存结果的接收凭据
+核心可能先提交一轮执行，取得一个 Future，再在稍后取结果。你可以先把 Future 理解成“用于接收这次结果的对象”：提交工作时，实际结果可能尚未准备好。
+
+代码中的 future.result() 会取得它的结果；如果尚未完成，这个调用可能等待。允许重叠的配置可以利用这段间隔继续准备其他工作。后面讲异步调度时，我们会检查哪些工作独立、哪些仍依赖前一轮结果。
+
+还有一个容易误读的返回值。某些执行路径将模型前向和采样拆开：execute_model 完成前向后可以返回 None，核心再调用 sample_tokens。这里的 None 有明确的协议含义，应结合下一句一起读。
+## 2.4 发一份消息，不是共享同一个对象
+前端把 A 整理成 EngineCoreRequest，发到核心。核心据此建立自己的 Request。可以把它想成两份各有用途的记录：前端负责接收和输出，核心负责安排计算。
+
+核心把某个计数加一，前端的计数不会自动跟着变化。更新需要通过后续消息传回。因此，每份消息都要带请求身份，系统才知道结果属于 A，而不是同时运行的 B。
+
+输入处理器还区分外部 ID 与内部 ID，默认会给内部 ID 加随机后缀。本书的 A/B/C 是便于讲解的别名；查真实日志时，应核对这两个 ID 如何对应。
+
+@walk input|InputProcessor.assign_request_id|找出 external_req_id 保存在哪里，内部 request_id 怎样生成。先掌握身份对应，不必记随机后缀的具体字符。
+## 2.5 谁创建状态，谁负责清理
+考虑一个具体时刻：A 已经发给 GPU，用户却关闭了连接。前端可以结束输出，但 GPU 上已提交的工作仍可能在执行。
+
+此时，核心的请求记录、KV 块引用、Worker 的持久请求行，都需要各自清理。尤其是 KV 内存：如果旧工作还在写，就不能立刻把它交给另一条请求覆盖。第 16–17 章会解释用于判断安全时机的序号。
+
+提交时也有类似的先后约束。前端需要先登记 A 的输出接收状态，再把 A 发给核心。否则，核心回得很快，前端却还不知道把结果交给谁。
+
+@walk async|AsyncLLM._add_request|对照两句关键调用：先 OutputProcessor.add_request，再 engine_core.add_request_async。试着解释交换它们会出现什么时序问题。
+## 2.6 用四个问题做阅读笔记
+以后每遇到一个函数，先写下：谁调用它？给了什么？它改了谁的状态？结果交给谁？遇到 await、yield、Future 和消息发送，再补一句“这里等待或跨越了什么边界”。
+
+这些问题比逐字翻译语法更有用。它们会让一个长函数逐渐变成可追踪的数据流，而不是需要硬背的名字清单。
+@exercise await 是否等于“等待 GPU 全部完成”？
+@answer 不等于。它等待某个可等待对象；是否对应 GPU 完成，取决于这个对象具体代表什么。
+@exercise 为什么前端与核心要靠带 ID 的消息交换状态？
+@answer 多进程内存分离，两侧记录也有不同用途。ID 让系统能将输入、结果和原用户关联起来。
+@exercise finished=True 后仍出现清理动作，是否一定是泄漏？
+@answer 不一定。结束输出、处理在途结果、归还 KV 和清理 Worker 状态可能分阶段完成。要看安全时机之后资源是否回收。
+@next 现在已经能分清调用、等待和消息。下一章就带着这几个问题，走进固定版本的仓库。
+
+@chapter 03|一、建立共同语言|带着一个问题走进仓库
+@lead 能从用户接口找到核心执行，知道源码坐标为什么要固定，以及怎样读完一次调用的来回。
+## 3.1 今天只追一个问题
+打开仓库时，不妨先问：“调用 LLM.generate 后，是谁让模型一轮一轮生成的？”
+
+这个问题给了我们起点和终点。起点是用户接口，终点是推动引擎的循环。第一遍只把两者接起来，遇到量化、多模态或投机分支时，先记下它的入口，之后再研究。
+
+这样读，你每走一步都有理由。一次阅读结束时，也能用“我找到哪段输入经过哪段处理，到了哪里”描述收获。
+
+@walk off|LLM.generate|从用户接口开始，找到它委托给 _run_completion 的位置。然后沿继承进入 OfflineInferenceMixin。
+@walk offbase|OfflineInferenceMixin._run_engine|找 while 循环、llm_engine.step 和完成结果收集。这个循环回答了“谁持续推进生成”。
+## 3.2 为什么一本教材要固定 commit
+如果你打开的仓库已经更新，文件可能移动，函数也可能改名。即便两份代码都写着 vLLM，它们也未必具有同一条调用路径。
+
+所以，本书采用 v0.30.0，完整提交为 ced6857afa0ea7b2e3f0846a62e1394e90f15607。每个源码入口都带这个固定版本的路径和行号。你能用本地页面核对，也能打开官方永久链接。
+
+行号只是帮助定位，真正要掌握的是职责和数据流。将来升级版本，应重新寻找相同职责，再比较行为；不必因为行号变了就从头重学系统。
+
+@note 阅读快照与完整仓库|本目录保留 123 个选择性源码、文档与测试文件，原始 LICENSE 也一并保存。它适合阅读，完整开发仍需官方 checkout 和相应依赖。文件身份与符号范围见 _research/source-manifest.json 和 source-index.json。
+## 3.3 把目录当作路标
+先按“我现在要回答什么”选择目录。下面的表用于查路，第一遍不用背下来。
+
+|你正在问的问题|先去这里|常见内容|
+|文本怎样进入服务？|vllm/entrypoints/|用户 API、HTTP、渲染|
+|这个选项改变什么？|vllm/config/|配置与兼容性|
+|请求怎样跨进程，谁推进一轮？|vllm/v1/engine/|客户端、核心循环、输入输出|
+|本轮算谁，KV 放哪里？|vllm/v1/core/|调度与缓存管理|
+|计划怎样变成 GPU 输入？|vllm/v1/worker/|Worker、Runner、采样|
+|矩阵怎样经过模型？|vllm/model_executor/|模型、权重、并行线性层|
+|Attention 用哪个实现？|vllm/v1/attention/|后端与元数据|
+|怎样确认边界行为正确？|tests/、docs/design/|测试与设计解释|
+
+阅读 GPU 路径时，还要区分两个名字：V1 引擎与 Model Runner V1。引擎的目录叫 v1，但它可以根据配置选择 Model Runner V2。本书会明确标注 Runner，避免把两代实现拼成一条调用链。
+## 3.4 当你在旧路径里找不到代码
+本版本的 entrypoints/openai/api_server.py 主要负责兼容性重导出。真正的在线启动逻辑需要继续到 entrypoints/launchers/api_server/entry.py；聊天路由则在 chat_completion/api_router.py。
+
+离线接口也有类似情况。LLM.generate 出现在 llm.py，循环却在它继承的 OfflineInferenceMixin 中。若只在一个文件里搜索，就会觉得代码“突然消失了”。
+
+遇到这种情况，顺着 import、继承、工厂或注册表多走一步。每次记下一条实际调用边，会比根据文件名猜实现可靠。
+
+@pause 搜到了两个都叫 step 的函数，怎么判断先读哪个？|先看调用者。LLMEngine.step 对接核心客户端和前端输出处理；EngineCore.step 在核心侧安排并执行一轮。它们处于不同层，需要通过调用与结果关系接起来。
+## 3.5 读完一次来回
+找到被调用的函数后，别停在 return。再回到调用者，看看它怎样消费返回值。许多重要含义就藏在这里：None 是否触发下一步采样？某个列表是否送去 abort？一个计数是否用来判断还要不要继续循环？
+
+这就是我们反复采用的阅读单位：输入如何构造，函数怎样处理，结果接着去了哪里。对照这一来回，再读异常和特殊分支，就有了可以依附的骨架。
+## 3.6 做一次小练习
+在本目录执行下列命令，它们只打印源码，不导入 vLLM，也不启动 GPU：
+~~~
+python labs/run.py source llm LLMEngine.step
+python labs/run.py source core EngineCore.step
+~~~
+给两段代码各写一句话：它接过什么，交出什么。完整解释会在第 8 章出现，现在先保留自己的判断。
+
+希望检查教材文件和引用是否完整时，还可以执行：
+~~~
+python _tools/verify_textbook.py --static
+~~~
+@exercise 为什么本书固定 commit？
+@answer 让路径、符号和行为可复查。main 会持续变化；研究新版本时，应重新定位并比较相关实现。
+@exercise vllm/v1/ 目录是否保证使用 gpu_model_runner.py？
+@answer 不保证。V1 引擎内有两代 Runner，实际选择由配置决定。本书普通支持路径主要阅读 gpu/model_runner.py。
+@exercise 从一个新函数里出来后，还要回到哪里？
+@answer 回到调用者，查看返回值怎样被消费；只有这一来回接上，才知道这个函数在系统里的实际作用。
+@next 下一章从真正的起点读起：请求还没到，系统需要先准备什么，才能让模型开始工作？
+
+@chapter 04|二、让一条请求跑起来|请求还没来，启动阶段在忙什么
+@lead 能解释配置、权重、KV 容量和预热怎样接起来，知道“服务就绪”究竟准备好了什么。
+## 4.1 先把问题放在请求之前
+你在 A100 服务器上启动服务。终端开始打印配置、模型加载、内存检查和预热信息，但此时还没有用户发来一句话。GPU 为什么已经占用了显存？
+
+原因是一次生成需要的资源，许多都可以提前准备。模型权重要先加载到设备，保存历史 K/V 的空间要先规划，执行器也要知道怎样把计划交给 GPU。准备完成后，请求才可以进入正常的计算过程。
+
+我们先列出四件事：确定运行方式，加载模型，决定 KV 容量，准备执行路径。下面沿这四件事逐个往下走。
+## 4.2 先把“怎么运行”写清楚
+假设我们选一个普通文本模型，只用一张 GPU，并先关闭异步调度和 CUDA Graph。这些选择会被整理到配置里。
+
+源码中的 EngineArgs/AsyncEngineArgs 接收启动参数，再生成 VllmConfig。你可以把 VllmConfig 看作各组件共同使用的运行说明：模型是什么，长度上限多大，怎样并行，每轮允许多少工作，使用什么缓存和执行方式。
+
+因此，一个选项可能影响多处。例如开启多卡不仅改一个数字，还会改变执行器、通信组和权重分布。当前先保持单卡，等第 19 章再改变这一条件。
+
+配置生成后，AsyncLLM 创建前端处理组件和核心客户端；核心侧创建 EngineCore。EngineCore 再构造 Executor，让它准备执行端。先记住这条因果关系：配置先确定可选路径，对象再按配置创建。
+
+@walk launch|build_async_engine_client_from_engine_args|先找 create_engine_config，再找 AsyncLLM.from_vllm_config。这里把“启动参数”交给了“运行中的引擎”。
+@walk core|EngineCore.__init__|只追三个创建动作：Executor、KV 初始化、Scheduler。其他特性先标在旁边；这几步是启动时执行，不是每条请求都重做。
+## 4.3 模型代码与模型权重，分别提供什么
+现在需要加载模型。这里有两份东西：模型实现代码规定如何计算；checkpoint 里的权重提供矩阵的具体数值。
+
+例如，Qwen3ForCausalLM 描述隐藏状态如何经过模型，以及怎样得到词表分数。权重加载器把保存的张量对应到这些参数中。模型配置里的 architecture 帮助 ModelRegistry 找到相应实现类。
+
+加载完成后，权重通常会留在 GPU 中，供后续请求反复使用。一条请求进入时，系统主要准备它自己的输入、激活和 KV；无需把同一套权重从磁盘重新加载一遍。
+
+推理也不会在每条请求后执行 backward 和 optimizer.step。训练已经确定了参数。之后增加的 KV 是这次请求的中间结果，并不是对模型进行了新的训练。
+
+@walk registry|_ModelRegistry.resolve_model_cls|看输入的架构名称如何被解析为实现类。此处回答“调用哪份模型代码”，具体张量加载由后续加载器负责。
+## 4.4 还有多少显存可以留给 KV
+权重就位后，不能把剩余显存全部算成 KV 容量。模型运行时还需要激活、临时工作区，其他库和图执行也可能占用空间。
+
+Worker 会通过 profiling，也就是执行一段用于估计资源需求的过程，观察有关开销，再结合显存预算计算 KV 可用空间。若设置显式 kv_cache_memory_bytes，则按对应分支处理。具体扣除项应对照源码和启动日志。
+
+这里先做一个纸面例子。假设普通 Dense/GQA 模型有 32 层、8 个 KV 头，每头 128 维，KV 使用 BF16，每个元素 2 字节。一个 token 的 KV 大小可以这样一步步数：
+
+|先算哪部分|计算|得到什么|
+|某层的一个 K 头|128 × 2 字节|256 字节|
+|某层全部 8 个 K 头|256 × 8|2048 字节|
+|同层还要保存 V|2048 × 2|4096 字节，即 4 KiB|
+|共有 32 层|4096 × 32|131072 字节，即 128 KiB/token|
+
+于是得到常见公式：每 token KV 字节数 ≈ 2 × L × H_kv × d_head × 元素字节数。前面的 2 表示 K 和 V 两份；L 表示层数。这里使用 KV 头数，而不是不加区分地使用查询头数。
+
+如果一个块保存 16 个 token，它约为 16 × 128 KiB = 2 MiB。假设真正留给 KV 的预算是 20 GiB，那么理想化块数为 20 × 1024 / 2 = 10240。
+
+@note 这几个数用来演算|20 GiB 是假设预算，不是你的 A100 实测值。真实布局还有分组、对齐、复制和特殊模型状态等约束。先用简单公式理解数量级，再回到实际规格。
+@walk worker|Worker.determine_available_memory|对照显式字节预算与 profiling 两条路径，找出哪些内存开销会影响 KV 预算。
+## 4.5 分配空间，还没有算出 KV
+得到块数以后，系统可以初始化 GPU 上的缓存存储，同时在 CPU 上建立可用块的管理记录。此时有了“以后可以往哪里写”的空间，A 的具体 K/V 却还不存在：A 甚至还没有提交。
+
+等 A 到达并被调度，模型才会计算它的 K/V，再写到分配给它的位置。所以，启动时分配缓存、调度时分配请求使用权、执行时写入数值，是三件前后关联的事。
+
+另外三个上限也容易混淆，先用问题记住它们：
+
+|你想知道什么|对应配置|
+|一条序列总共允许多长？|max_model_len|
+|最多同时运行多少请求？|max_num_seqs|
+|一次调度安排多少 token 工作量？|max_num_batched_tokens|
+
+它们共同约束服务，但都不能单独等同于 KV 总容量。第 9–10 章会用具体请求把这些限制放到同一轮计划里。
+
+@walk core|EngineCore._initialize_kv_caches|沿“规格 → 内存预算 → 缓存配置 → 初始化与预热”阅读。返回时，后续调度需要的容量与执行端存储才接上。
+## 4.6 再走一次执行路径
+最后还有 Runner 选择、编译或预热等准备。Runner 是组织模型执行的组件；本版本可选择两代实现。本书主要阅读支持条件满足时的 MRV2。实际使用哪代，应核对配置和日志。
+
+预热可以提前走过某些计算路径；允许 CUDA Graph 时，还可能捕获适合重放的执行结构。本书先用 eager 路径，也就是先按普通调用方式执行，等基本流程清楚后，再单独比较图执行。
+
+@figure startup
+
+现在回到开头的问题。还没有请求，显存里也可能已经有权重和预分配缓存，这是启动准备的结果。服务就绪意味着：模型已加载，KV 容量已确定，执行端与调度器已经可以配合工作。
+
+下一条请求到达时，这些常驻资源会被复用；新增的是这条请求的内容和状态。
+@pause 此刻能不能在 KV 缓存里读到“小猫喜欢吃”的历史？|不能。存储空间已经准备好，但这条请求的 K/V 还需要在它提交、被调度并完成模型计算后才有效。
+@exercise 增大 max_model_len，是否表示每条请求立刻占用该长度的全部 KV？
+@answer 普通分页缓存通常按使用进度分配，但准入预留、特殊模型和配置还会影响容量约束。因此长度上限本身不能直接当作每请求实际占用。
+@exercise 32 层、8 KV 头、128 维、BF16 的普通 KV，每 token 占多少？
+@answer 先算一层 K：8×128×2=2048 字节；K/V 两份为 4096；32 层共 131072 字节，即 128 KiB。
+@exercise 第一条请求很慢，为什么还要区分启动准备与稳态执行？
+@answer 首次请求可能触发尚未覆盖的编译、预热或传输，也包含外部排队等成本。先确认时间发生在哪个阶段，才能判断该优化哪里。
+@next 资源已经准备好了。下一章让 A 真正到达，观察一句文本怎样被整理成核心能处理的输入。
+
+@chapter 05|二、让一条请求跑起来|文本如何进入引擎
+@lead 终点是 EngineCoreRequest：它不再是 HTTP 对象，而是足够让核心安排推理的结构化输入。
+## 5.1 HTTP 的 messages 不是模型直接输入
+聊天请求可能包含 system/user/assistant 消息、工具定义、生成参数和 stream 标志。FastAPI 路由解析协议对象，OpenAIServingChat 检查模型及请求，再调用渲染器。聊天模板把角色边界和必要的控制标记写成模型训练时约定的格式；Tokenizer 再转换为 IDs。
+
+“用户键入三个汉字”不等于“三个 token”。同一句纯文本在不同模板、Tokenizer 或特殊 token 设置下会得到不同 IDs。BPE 等分词规则通常在训练 Tokenizer 时确定，推理时加载已有规则执行编码，不会在每条请求上重建词表。
+@walk router|create_chat_completion|从路由观察完整 JSON 响应与 StreamingResponse 两种返回形式。路由接受请求后，计算仍由后面的引擎负责。
+@walk chat|OpenAIServingChat._create_chat_completion|按 render、参数转换、engine_client.generate、stream/full 分支梳理数据变换。
+## 5.2 渲染与输入处理各负责什么
+OnlineRenderer 处理聊天模板、工具和消息表示，得到 conversation 与 EngineInput。InputProcessor 接受已渲染的 EngineInput，完成采样参数/模型能力/长度等校验，补全或克隆参数，并生成 EngineCoreRequest。兼容的原始 Prompt 路径可能在输入处理器中继续渲染；不能据此让所有路径重复分词。
+
+例如 A 的教学路径直接给 token IDs [11,10,7]，跳过真实聊天模板。真实聊天实验则保存 apply_chat_template 后的完整 IDs。两条路径都能研究调度，但只有后者代表你部署模型真正看到的输入。日志里应同时记录模板版本、模型 revision 和采样配置。
+@walk renderer|OnlineRenderer.render_chat|检查模板与工具相关校验，定位 preprocess_chat，辨认 conversation 与 engine input 两种输出。
+@walk input|InputProcessor.process_inputs|从已经渲染的输入追到 EngineCoreRequest；关注长度、EOS、参数复制和默认 max_tokens 的补全。
+## 5.3 请求参数怎样分组
+|参数类别|典型内容|主要影响位置|
+|输入身份|request_id、模型、adapter|路由、状态索引与隔离|
+|输入内容|prompt_token_ids、embedding、多模态数据|输入处理和模型|
+|生成规则|temperature、top_p、max_tokens、stop|采样与停止|
+|资源约束|max_model_len、token/sequence 预算|引擎配置与调度|
+|返回协议|stream、logprobs|输出处理和 HTTP|
+
+max_tokens 是允许生成的 token 数上限，不是 prompt 长度；stop 字符串可能跨多个 token；ignore_eos 改变 EOS 的停止含义。这些参数会沿不同路径被消费，不会全部传给 Transformer.forward。
+## 5.4 输入的检查与错误边界
+本章结束应能画出 messages → 渲染后的控制文本/结构 → token IDs/EngineInput → EngineCoreRequest。请求因为长度或参数非法而被拒绝时，可能尚未分配 KV，更没有执行一次 GPU 前向。把所有报错都称为模型错误，会使排障方向错位。
+
+练习时先读本地源码，不依赖下载大模型。以后在 A100 上运行同一请求时，保存 tokenizer 输出并与服务日志核对；如果接口返回文本看似合理但你无法说出模型真正收到的 IDs，可以回到这里补一次实际输入检查。
+@pause 套用了聊天模板以后，还能直接把用户原句的 token 数当作完整输入长度吗？|不能。角色和控制标记等可能增加输入。应检查实际模板输出与编码结果，而不是凭原句长度估计。
+@exercise 为什么不能在教材中把真实 Qwen 的“小猫喜欢吃”强行写成 [11,10,7]？
+@answer IDs 由特定词表与聊天模板决定。这个序列只属于本书微型教学 Tokenizer，真实模型必须实际编码。
+@exercise stop="END" 一定对应一个 token ID 吗？
+@answer 不一定。字符串可能分成多 token，也可能在累计解码文本中跨边界出现，因此需要增量解码器参与停止检测。
+@exercise 从 HTTP 请求中选出三个不会直接进入模型 forward 的字段。
+@answer 如 stream、request_id、stop 字符串。它们影响输出协议、身份和终止处理；模型数值输入主要是 IDs/embeddings、位置、KV 和相关元数据。
+@next 请求已经合法且有了内部身份。下一章跟踪它如何注册输出接收端、跨进程送入核心。
+
+@chapter 06|二、让一条请求跑起来|AsyncLLM、客户端与跨进程交接
+@lead 本章追踪“提交”和“收取”的闭环。核心问题是：请求发走以后，返回结果如何找到原来的用户？
+## 6.1 先注册回程，再发送请求
+AsyncLLM.add_request 接受输入，经过 InputProcessor 得到内部请求。它创建 RequestOutputCollector，并在 OutputProcessor 中登记该请求。随后 _add_request 通过客户端发送消息。这个顺序保证：即使核心很快返回，也已经存在接收结果的状态。
+
+n>1 的并行候选、pooling 或流式输入会增加父子请求等分支。第一遍只读 n=1 的文本生成，记下哪些分支不进入。主线输出是一个与请求关联的收集器；generate 循环消费它，而不是把核心的全局输出直接交给任意 HTTP 连接。
+@walk async|AsyncLLM.add_request|追踪输入处理、内部 ID、输出收集器及 n=1 主线。返回的 collector 属于前端生命周期。
+@walk async|AsyncLLM._add_request|在消息发送前注册请求，形成完整回程地址。
+## 6.2 客户端隐藏了传输，但不能忽略传输
+EngineCoreClient.make_client 根据同步/异步、多进程设置选择实现。在线异步路径通常通过 AsyncMPClient；ADD 消息包含可序列化的请求。核心输入线程接收后预处理，再把对象送入核心循环处理。
+
+不要把序列化消息理解成“把 Python 指针传给 GPU”。消息跨 CPU 进程边界，核心建立自己的 Request；GPU 输入还需等调度、打包、拷贝与模型执行。远程 KV、共享内存与 tensor 通道有额外优化，但不能抹去逻辑边界。
+@walk client|AsyncMPClient.add_request_async|观察 client_index 与 ADD 消息发送；客户端身份用于多前端输出路由。
+@walk core|EngineCore.preprocess_add_request|从 EngineCoreRequest 构造核心 Request；多模态缓存、结构化语法初始化属于额外前处理。
+## 6.3 核心为何能持续工作
+EngineCoreProc.run_busy_loop 反复处理输入队列并执行一步。ADD 把请求交给 Scheduler；ABORT 标记停止；其他消息处理管理操作。循环既要避免无请求时空转，也要在有输出或待清理状态时继续前进。
+
+请求进核心不等于立刻占用 GPU。它可能在 WAITING 中等待预算、语法就绪、远程 KV 或空闲块。前端 HTTP 连接的存在时间包含这些等待；因此端到端延迟不能仅由单个模型 forward 时间解释。
+@walk core|EngineCoreProc.run_busy_loop|定位输入处理和 engine step 的关系，区分服务循环与一次模型前向。
+@walk core|EngineCoreProc._handle_client_request|从消息类型分发到 ADD/ABORT 等操作，说明核心状态为何只通过受控入口改变。
+## 6.4 回程是一个独立的循环
+AsyncLLM 的输出处理任务从核心客户端取 EngineCoreOutputs，调用 OutputProcessor，再推给对应 collector。generate 在另一个逻辑位置等待该 collector。控制流因此不是一条递归调用栈，而是“提交任务 + 后台收结果 + 按请求消费”的闭环。
+
+RequestOutputCollector 并不是无限长的每 token 队列。它使用事件与待消费输出，DELTA 模式下可合并生产者先产生的结果。网络消费者慢时，一次 yield 或一次 SSE chunk 可能包含多个 token。不要根据 HTTP chunk 数直接统计模型步数。
+@walk async|AsyncLLM._run_output_handler|跟踪批量核心输出到前端处理器，再到请求收集器；观察 stop 字符串触发的反向 abort。
+@walk output|RequestOutputCollector|阅读事件与 put/get 行为，解释结果合并与背压相关语义。
+@pause 如果 B 比 A 先完成，可不可以把结果按提交顺序依次发回？|不能只依赖顺序。应按内部 request_id 找到各自前端状态，再交给对应消费者。
+@exercise 请求进入 AsyncLLM 后，哪一步之前必须有前端接收状态？
+@answer 在 engine_core.add_request_async 的第一次消息发送/await 之前，OutputProcessor 必须已经登记请求，否则快速输出可能找不到接收者。
+@exercise SSE 收到 5 个 chunk，能推断 GPU 跑了 5 次 decode 吗？
+@answer 不能。网络与 collector 可合并输出，投机也可能每步产生多个 token；应使用核心步骤和采样统计。
+@exercise 如何证明某条响应属于原来的请求？
+@answer 沿内部 request_id 检查 EngineCoreRequest、核心 Request、EngineCoreOutput 与 OutputProcessor 索引，再映射外部 ID 和原 HTTP 消费者。
+@next 现在请求已经进入核心。下一章先定义核心数据结构，之后再解释调度器如何修改它们。
+
+@chapter 07|二、让一条请求跑起来|请求对象与状态：把数字读准确
+@lead 一个调度字段的含义若读错，后续时序图都会错。本章建立贯穿全书的字段字典与状态账本。
+## 7.1 三类对象，三个责任
+EngineCoreRequest 是前端发往核心的输入数据约定，包含 IDs、参数、身份和到达信息。Request 是核心可变对象，保存已知 token、输出 token、调度进度和状态。SchedulerOutput 是本轮执行计划，告诉 Worker 哪些请求新增、哪些更新、各算多少 token、哪些结束。
+
+执行后得到 ModelRunnerOutput，核心据此更新 Request，形成 EngineCoreOutput；前端再转换为用户可消费的 RequestOutput。名字中的 Output 不代表同一抽象层。ModelRunnerOutput 的行索引必须通过 req_id_to_index 映射回请求，不能拿排序前的列表顺序猜。
+@figure contracts
+@walk req|Request.__init__|按身份、token、计数器、特殊特性四组阅读字段；注意内部可变列表与对外只读视图。
+@walk schedout|SchedulerOutput|这是一份计划数据约定，重点读新/缓存请求、token 计数、finished/preempted IDs 和 KV 相关信息。
+## 7.2 四个计数，四种含义
+|字段/概念|主线含义|A 的典型数值|
+|num_prompt_tokens|原始输入 token 数|始终为 3|
+|num_tokens|核心已知的输入与已生成 token 总数|3 → 4 → 5|
+|num_computed_tokens|已被调度覆盖的前缀进度，可能乐观包含在途工作|0 → 3 → 4|
+|num_in_flight_tokens|已调度、结果尚未完成处理的 token 数|0 → 3 → 0 → 1 → 0|
+|ready_tokens（教学字段）|已真实完成 KV 写入的前缀数|0 → 3 → 4|
+|前端 num_cached_tokens|前缀缓存命中的统计值|本主线为 0|
+
+ready_tokens 只存在于教学实验，用来揭示物理完成与调度记账的区别。num_cached_tokens 不能拿来表示“当前全部 KV 长度”；scheduled_cached_reqs 也不等于“命中前缀缓存的请求”，它主要指 Worker 已经认识、可以用增量信息更新的请求。
+## 7.3 同步主线仍然存在提前记账
+Scheduler 在生成计划后就调用 _update_after_schedule，把 num_computed_tokens 和 num_in_flight_tokens 增加。本轮 GPU 尚未执行完，核心字段已经前移。后续 update_from_output 减去在途计数并处理真实结果。异步、投机、失败与取消会让这个区别更关键。
+
+A 调度 prefill 后，computed=3、in_flight=3、教学 ready=0；采样完成再更新请求记录后，known=4、computed=3、in_flight=0、ready=3。新生成的鱼只是一个输出 ID，此时鱼本身还没有通过模型，因此没有它的 KV。下一轮把鱼作为输入，才使 ready 从 3 变为 4。
+@walk sched|Scheduler._update_after_schedule|逐句确认计划后立即增加的两个计数，再看 is_prefill_chunk 的判定。不要仅从字段名推断 GPU 完成。
+## 7.4 状态机不是只有 waiting/running/finished
+普通请求 WAITING → RUNNING → FINISHED_STOPPED 或 FINISHED_LENGTH_CAPPED。内存不足时可能 RUNNING → PREEMPTED → 再调度。结构化语法、远程 KV 和流式输入有专门等待状态；把它们都当成 GPU 忙，会误判排队原因。
+
+正常结束会归还所有权并从核心活动映射中移除，但不要求把那个旧 Request 对象的 num_computed_tokens 重置为 0。抢占则为了重算，会重置进度。Worker 的持久状态还需在后续计划收到 finished_req_ids 后清除。
+@walk req|RequestStatus|把普通状态、特殊等待状态、终止状态分别标到纸上。结束判断依赖枚举约定，不只是字符串比较。
+## 7.5 本章实验
+~~~
+python labs/run.py trace --json
+~~~
+检查时暂停在“调度 prefill 后”和“结果回填后”两行，解释为何 known/computed/ready 不相等。最后一行是零 token 清理步：没有 Transformer 前向，但 Worker 删除请求状态，因此仍然有有用工作。
+@pause 生成鱼以后，known=4、computed=3。在下一轮里，真正需要作为新输入的是谁？|是鱼的编号 8，位置为 3。它执行后，鱼才有自己的 KV；EOS 则在被选出后直接触发结束。
+@exercise computed=3 能否说明 GPU 已经写好了 3 个 token 的 KV？
+@answer 不能。调度阶段已提前记账，必须结合在途状态及结果处理边界判断；教学 ready 专门表示真实完成。
+@exercise scheduled_cached_reqs 出现 A，能否断言 A 命中了 APC？
+@answer 不能。它是 Worker 状态更新类别；APC 命中要看 KV 查找结果和命中统计。
+@exercise 输出 [8,1] 后，为什么缓存主线只需要 4 个 token 的 KV，而已知 token 有 5 个？
+@answer Prompt 3 个加鱼作为 decode 输入共 4 个执行过；EOS 刚被采样就终止，不必再作为下一次输入执行。
+@next 字段定义齐备，下一章按一轮 EngineCore.step 的严格顺序，把计划、执行、采样和更新请求记录串起来。
+
+@chapter 08|二、让一条请求跑起来|EngineCore：一轮如何推进
+@lead 你将能不用看图复述一次 step，并解释 forward 没有直接返回 token 时引擎为何仍然正常工作。
+## 8.1 把一轮拆成能看见的步骤
+先用 A 的第一次执行来代入。此时 prompt 是 [11,10,7]，核心已经保存了它，但 GPU 还没开始算。
+
+|顺序|这一刻做什么|交给下一步什么|
+|1|查看是否有请求或待清理状态|决定是否需要继续|
+|2|Scheduler 安排 A 的 3 个输入 token|本轮执行计划|
+|3|执行器提交模型执行|用于取回结果的 Future|
+|4|准备需要的采样约束，取得执行结果|隐藏状态对应的采样结果，或继续采样的信号|
+|5|若前向返回 None，接着调用 sample_tokens|如鱼 8 这样的新 token ID|
+|6|处理期间到达的取消，再更新请求记录|接受的输出、停止状态与核心消息|
+
+先别急着记每个函数名，注意这些步骤为什么有先后。采样需要模型先给隐藏状态；请求历史只能加入有效采样结果；文本又要等前端解码。把任意两步交换，都可能改变含义。
+
+本书同步基本流程一次只有一批，使用 EngineCore.step。等这条依赖关系清楚后，第 17 章再说明怎样重叠多批，以及哪几步可以提前准备。
+
+@pause 第 2 步做完后，computed 已经增加了。这是否表示模型已经完成？|还没有。它是调度后的提前记账。真正计算在第 3 步提交，结果还要经过等待和处理。第 7 章分开的那几个计数，在这里有了各自的位置。
+@walk core|EngineCore.step|对照表格寻找 schedule、execute_model、future.result、sample_tokens 和 update_from_output。先把函数读成这几个动作，再核对细节。
+## 8.2 两次前向生成两个输出
+@figure trace
+A 首次计划输入 [11,10,7]，位置 [0,1,2]，生成 3 个位置的 K/V；通常只从最后一个有效位置采样后继 token，得到 8。核心把 8 加入已知序列，输出给前端。第二次输入只包含 [8]，位置 [3]，查询可见前缀 KV，采样得到 1 EOS，然后结束。
+
+教学模型的输出来自重新执行矩阵前向，而控制层采用本书的简化状态模拟；实验不是在 CPU 安装并运行真实 vLLM Scheduler。真实模型也未必产生鱼。这样的隔离使你可以先检验调度因果，再到 GPU 核对生产执行。
+## 8.3 为什么执行和采样分开
+MRV2.execute_model 准备输入、执行模型并保存采样所需隐藏状态；最后阶段 sample_tokens 计算 logits、应用采样规则并构造 ModelRunnerOutput。PP、语法约束、投机及异步输出都可能影响它们的交接。把“模型 forward = 完整文本输出”合成一步，会丢失引擎的重要协议。
+
+模型输出可能在 GPU 上继续参与采样和状态更新，CPU 只接收必要的 token 与统计。异步 device-to-host 输出也需要在正确时机完成；不能因 Python 函数返回就推断所有设备副作用结束。
+@walk runner2|GPUModelRunner.execute_model|关注 update_requests、prepare_inputs、模型调用、execute_model_state 和 None 返回。按支持的单卡文本分支阅读。
+@walk runner2|GPUModelRunner.sample_tokens|跟踪保存的状态如何被消费，输出如何带请求映射，再如何清除本轮执行状态。
+## 8.4 没有 token，也可能要再 step
+Scheduler.has_requests 包括未结束请求、已结束 ID 的清理，以及连接器待处理状态。因此最后一条请求结束后，可能仍需一轮计划把 finished_req_ids 发给 Worker。MRV2 在 total_num_scheduled_tokens=0 时可走 no_forward 路径，处理状态而不跑 Transformer。
+
+这解释了一个常见误会：看到最后一次 step token 数为 0，不能断言是空转 bug；要看它是否在传递清理或连接器进度。反过来，长期无工作仍持续忙循环也需要排查，不能用“可能在清理”永远搪塞。
+@walk sched|Scheduler.has_requests|检查 unfinished、finished 与 connector pending 的并集，建立循环退出条件。
+@exercise 为什么 prefill 的 3 个输入通常只产生 1 个下一 token？
+@answer 这 3 个位置都参与计算和建立 KV，但自回归续写首先需要最后位置的后继分布。前面位置的预测不是这次用户续写的三个独立输出。
+@exercise execute_model 返回 None 时，你会先检查哪里？
+@answer 检查执行器/Runner 协议和 EngineCore 的 sample_tokens 分支；在本主线路径它表示 forward 与采样分离，不能直接报失败。
+@exercise 最后一条输出后还有一轮计划，至少检查哪两个字段？
+@answer total_num_scheduled_tokens 与 finished_req_ids；再看 Worker 是否删除持久状态及 KV 是否安全归还。
+@next 下一章展开 step 的第一个核心动作：Scheduler 如何用统一的 token 预算安排长短不一的请求？
+
+@chapter 09|三、调度与显存管理|统一调度、分块 prefill 与抢占
+@lead 本章从“还有多少已知 token 没被覆盖”推导调度，而不是先背 prefill/decode 两张独立队列图。
+## 9.1 统一表达式
+普通同步文本主线中，请求需要的新工作量约为 num_tokens - num_computed_tokens；生产实现还包含 spec token、输出占位和长度约束。初始 A 有 3 个已知、0 个已调度，因此需 3；采样鱼后 known=4、computed=3，因此需 1。prefill 与 decode 可以在同一表达式下处理。
+
+Scheduler 先考察 running，再准入 waiting。running 中也可能有尚未完成的分块 prefill；因此“running 队列等于 decode 队列”不成立。调度还受 token 预算、请求数、长 prefill 阈值、KV 容量、模型长度、特殊输入和优先级等约束。
+@walk sched|Scheduler.schedule|先读函数开头的统一计数说明，再追 running、waiting、构造 SchedulerOutput、_update_after_schedule 四段，不要求一次吞下全部特殊分支。
+## 9.2 用预算 8 手算一次
+设 A 还需 1 个 decode token，B 还剩 3 个 prefill token，C 是新到的长输入。按本次简化配置和顺序，A1+B3 先占 4 个，C 获得剩余 4 个，得到计划 {A:1,B:3,C:4}。这只是隔离条件下的教学计划，真实结果还受准入预留、块不足、优先级与其他分支影响。
+
+C 的输入若为 20 个 token，本轮只计算前 4 个并建立相应 KV，不能提前把最后续写 token 当成有效输出。下一轮从进度边界继续。chunked prefill 的目的之一是限制长输入在一次调度中的资源占用，使短 decode 有机会穿插；它会增加管理和执行次数，不是无条件免费。
+@figure scheduling
+## 9.3 四种预算分别问四个问题
+|约束|回答的问题|常见误读|
+|max_num_seqs|同时安排/运行多少请求？|把它当每步 token 数|
+|max_num_batched_tokens|本轮输入工作量上限？|把它当整个服务容量|
+|max_model_len|单序列总长度允许多大？|把它当已分配 KV 长度|
+|KV 块与准入策略|现在和后续是否有足够物理空间？|有 token 预算就必能准入|
+
+本版本 allocate_slots 可接收 full_sequence_must_fit 和 reserved_blocks 等信息。远程加载的 KV 会暂时占资源却不推进 forward，准入还要避免相互等待。故调度不是“填满 token 数”这么一个二维装箱问题。
+## 9.4 块不足时为什么抢占
+运行请求需要新块而容量不足时，调度器可能选择牺牲者，释放其可安全回收块，将其状态改为 PREEMPTED，重置计算进度并放回等待端。已知 token 历史仍可保留，之后通过重算恢复 KV。重算占用时间与算力，不能当作免费上下文保存。
+
+释放必须遵守在途写入安全。异步情况下，逻辑抢占与物理归还之间可能有延迟；新请求不能立刻复用正在被旧 kernel 写入的块。本书后续用调度序号解释这个约束。
+@walk sched|Scheduler._preempt_request|对照状态、进度、spec/placeholder、队列和块释放的处理，区分抢占与正常终止。
+## 9.5 本章实验与源码检查
+~~~
+python labs/run.py budget
+python labs/run.py source sched Scheduler.schedule
+~~~
+检查输出为 A1/B3/C4，总计 8。接着把预算调成 4，说明 C 本轮为何拿不到 token；再解释开启优先级、禁用 chunk、缩小 KV 池时为何不能继续声称这个结果必然成立。
+@pause 8 个预算分给 A1、B3、C4 后，C 的 20 个输入还剩多少？|还剩 16 个。本轮只建立已经执行部分的 KV，C 不能提前提交完整输入之后的续写。
+@exercise running 队列为何可能有 prefill？
+@answer 分块 prefill 的请求已经运行但输入尚未算完。队列表示生命周期/调度状态，不单纯表示模型阶段。
+@exercise 预算还有 100 token，但 waiting 请求没进入 GPU，是否一定是 bug？
+@answer 不是。请求数、KV 容量、准入完整输入预留、语法/远程 KV 等等待、优先级或模型限制都可能阻止它。
+@exercise 抢占会重新训练或改变已生成 token 吗？
+@answer 不会训练。主线通过保存已知 token 并重算前缀恢复 KV；调度和数值配置不变时应保持生成语义，但不能把重算成本忽略。
+@next 调度器已经决定算谁。下一章解释它申请的“块”是什么，以及逻辑序列如何映射到实际 KV 槽位。
+
+@chapter 10|三、调度与显存管理|分页 KV：从位置到物理地址
+@lead 目标是亲手算出 slot_mapping，并把 CPU 分配元数据与 GPU KV 写入分开解释。
+## 10.1 为什么把连续上下文拆成页
+为每个请求预留最大长度的连续 KV 空间，会浪费未使用尾部，并增加动态增长的管理困难。分页把逻辑序列切成固定 token 数的块，物理块可来自不同位置。请求持有逻辑块到物理块的映射，Attention 根据映射访问历史 K/V。
+
+普通 Dense 情况，块大小 b=16。位置 p 对应逻辑块 j=floor(p/16)、块内偏移 r=p mod 16；若块表为 [7,2]，p=19 对应 j=1、r=3、物理块 2、扁平 slot=2×16+3=35。slot 是给后端使用的索引语义，实际字节布局还取决于层、K/V、头、维度、dtype 和后端存储格式。
+@figure paging
+## 10.2 管理三种对象
+KVCacheManager 接受请求和将要安排的 token 数，协调不同缓存组的分配。BlockPool 管理物理块元数据与可用队列。GPU KV 张量由 Worker/Runner 初始化，执行算子按块表读写数值。Request 本身不应被想象成装着一个完整 GPU KV 矩阵。
+
+多层通常共享相应的 token 地址计划，但每层有自己的 K/V 数值。某层前缀 KV 不能直接当成另一层 KV。混合结构还可能有不同缓存组、滑窗或 Mamba 状态，不能把普通 Dense 的单表图硬套所有模型。
+@walk kv|KVCacheManager.allocate_slots|按“算需求、查容量、接纳命中块、分配新块、登记可缓存进度”阅读；关注新算、外部、lookahead 和在途边界的区别。
+@walk pool|BlockPool.get_new_blocks|观察从可用队列获取块、必要时移除旧缓存身份、增加引用。分配元数据本身不计算 K/V。
+## 10.3 一个块何时变得有内容
+allocate_slots 使槽位可供请求使用；Runner 的 slot_mapping 指定本轮每个输入 token 写到哪里；模型投影产生 K/V，缓存更新算子才写入真实值。分配后、kernel 完成前，这块内存可能仍保留旧字节，不能当成新请求的有效前缀读取。
+
+num_computed_tokens 的乐观前移在这里尤其危险。缓存发布必须基于已验证可复用的进度，异步路径还要排除在途部分；调度计数不等于物理数据完成证明。
+## 10.4 内存公式与尾部浪费
+请求当前有 n 个普通 KV token，块数约为 ceil(n/b)，尾部浪费小于 b 个 token。许多短请求会使尾部浪费累计，但通常仍比按最大长度整段预留小。块大可减少元数据和寻址开销，却可能降低共享粒度、增大尾部浪费；块小有相反取舍，也受后端合法块大小约束。
+
+本书 b=16 的地址演算符合常见块粒度，但仍应以实际后端配置校验为准。图解旧版 b=2 仅是画图用缩小值，不能复制为生产配置并假定可运行。
+## 10.5 检查
+~~~
+python labs/run.py pack
+~~~
+找到 A 的 position=19 与 slot=35，再逐项复算 B 的 [16,17,18] → [176,177,178]。如果你只能记住输出数字，却不能解释逻辑块和物理块哪个连续，可以再手算一次映射。
+@pause position=19，块长 16，块表 [7,2]：先查哪个下标？|先算逻辑块 19//16=1，再查 table[1]=2，块内偏移是 3，因此 slot=2×16+3=35。
+@exercise 块表 [7,2] 是否意味着请求的 token 顺序被打乱？
+@answer 没有。逻辑顺序由位置和块表索引保持；物理地址可以不连续，Attention 按逻辑顺序映射访问。
+@exercise 调用 allocate_slots 后，可以立即读取它作为前缀命中吗？
+@answer 不可以仅凭分配判断。必须确认对应 K/V 内容已正确计算/传输并满足可发布边界。
+@exercise 分配块、Attention tile、CUDA thread block 是同一个概念吗？
+@answer 不是。前者管理 KV 地址，tile 描述计算/数据搬运分块，thread block 描述 GPU 线程组织；它们可以共同出现在同一后端中。
+@next 分页解决地址管理。下一章在此基础上加入“相同前缀能否共享内容”的身份与生命周期。
+
+@chapter 11|三、调度与显存管理|前缀缓存：身份、引用与淘汰
+@lead 本章把“复用 KV”拆成四个问题：内容是否相同、数据是否完成、谁正在使用、何时可以覆盖。
+## 11.1 为什么 token 相同还不够
+某位置的 K/V 取决于它之前的上下文。两个块都包含“喜欢吃鱼”，如果前面的内容不同，通常不能共享。普通块哈希递归包含父前缀哈希、当前完整块 token 和额外身份信息；LoRA、多模态内容、cache_salt 等也可能进入键。
+
+教学实验令 P=[11,10,7,8] 重复四次，长度 16。A=P+[11,10,7] 与 B=P+[11,10,9] 可共享第一个完整块，尾部不同而私有。把相同的 P 放在不同的前缀后，其父哈希不同；只比较当前 16 个 token 会错误命中。
+@walk hash|hash_block_tokens|检查 parent_block_hash、token_ids 和 extra_keys 的组合，建立前缀依赖，而不是把缓存想成子串词典。
+@walk hash|generate_block_hash_extra_keys|确认 LoRA、MM、salt 等额外身份进入位置，理解跨请求隔离。
+## 11.2 命中长度为什么受限制
+普通 Dense 主线按完整块匹配，get_computed_blocks 还把最大命中长度限制到请求 token 数减一，以便至少重新执行最后所需位置并取得生成分布。缓存保存的是 K/V，通常不是你这次请求需要的最终 logits 或文本回答。
+
+若 prompt 长 19、块长 16，可命中前 16，仍计算位置 16–18 并从末位置采样。即便完整 prompt 的 K/V 曾存在，也不能简单声称“本次零 forward 就能生成”。本版本特殊混合组存在更细粒度部分前缀/COW 路径，不能把普通 Dense 的完整块规则升级为全仓库永恒定律。
+@walk kv|KVCacheManager.get_computed_blocks|注意 enable_caching、lookup 开关、max_cache_hit_length 和 coordinator。返回的是可复用块及 token 数，不是字符串答案。
+## 11.3 引用计数与缓存身份是两条轴
+@figure prefix
+假设物理块 7 存放 P。A 使用时 ref=1，B 共享后 ref=2。A 结束降为 1，B 结束降为 0。ref=0 表示没有活动请求持有它，可以回收；块内容和哈希索引却可能仍保留，让下一请求命中。
+
+真正重新分配该块时，BlockPool 必要时淘汰旧哈希，再把块交给新内容。free_blocks 不等于 cudaFree。GPU 大张量仍然常驻，变化的是块的所有权和可覆盖性。此区别直接关系到为何显存利用率不下降却没有泄漏。
+@walk pool|BlockPool.touch|命中已有缓存块时，如果 ref 为 0，先从可用队列移除，再增加引用。
+@walk pool|BlockPool.free_blocks|引用下降后，带缓存身份与不带身份的块采用不同回收顺序，不能简化为无差别“立即清空”。
+## 11.4 缓存带来收益，也带来约束
+APC 主要减少重复前缀的 prefill 计算，不能消除每次新 token 查询历史 KV 的 decode 成本。命中率、命中 token 比例和最终延迟是不同指标；短前缀频繁命中不一定节省很多计算。冷缓存、热缓存和不同 salt 需要分别测量。
+
+安全和正确性需要确认身份、内容完成、组兼容、引用以及传输状态。仅看 request_id 相同或可用块数变化，不能证明共享正确。生产路径中块表可能保留内容等价的不同物理块，并非一发现相同就强制合并所有旧表。
+## 11.5 动手复查
+~~~
+python labs/run.py prefix
+~~~
+检查要展示四个不同事实：A/B 的共享块哈希相等；改变父前缀或 salt 后哈希不同；ref=0 时索引仍可存在；重新分配时旧身份被移除。实验的哈希编码只演示语义，不与 vLLM 二进制格式互操作。
+@pause 块 7 的引用从 2 降到 1 时，谁还在用它？|还有一条活动请求。此时它不能被覆盖。之后降到 0，也仍可能保留缓存身份，等待复用或淘汰。
+@exercise A 结束后为什么不能直接覆盖 A/B 共享的块？
+@answer B 还持有引用，ref 仍大于 0。覆盖会破坏 B 的 Attention 历史。
+@exercise nvidia-smi 中 KV 占用没下降，是缓存泄漏吗？
+@answer 不能据此判断。物理缓存池通常常驻；应看活动引用、可用块、可淘汰身份和后续是否能再分配。
+@exercise APC 和回答缓存有什么区别？
+@answer APC 复用模型中间 K/V，仍需计算未命中部分和生成；回答缓存复用最终答案，语义与失效策略不同。
+@next CPU 侧已确定 token 数与地址。下一章把计划变为一组真正能交给 GPU 的张量。
+
+@chapter 12|四、GPU 执行与输出|MRV2：持久状态如何变成批输入
+@lead 你将手算 query_start_loc、positions、seq_lens、idx_mapping、slot_mapping，并区分这五类索引。
+## 12.1 为什么不能只堆叠三条变长序列
+高效执行通常把本轮有效 token 拼成一个紧凑的一维 token 轴，而不是把所有请求补到同一长度。Model Runner 必须保存每个 token 属于哪条请求、处于该请求哪个位置、历史 KV 在哪里，还必须让各层 Attention 得到相同边界信息。
+
+MRV2 为请求保留相对稳定的持久行；当前批次只通过 idx_mapping 选择这些行。一次调度只传必要增量，再从 GPU 状态构造输入。这样减少因每批重排而搬动大块持久状态，也引入 CPU/GPU 镜像一致性问题。
+@walk runner2|GPUModelRunner.add_requests|观察新请求如何取得持久状态行、采样状态和块表，辨认全量初始化数据。
+@walk runner2|GPUModelRunner.update_requests|观察旧请求进度和块表更新，以及归零/复制等设备操作的先后关系。
+## 12.2 一个混合批次的完整账本
+|请求|持久行|本轮 token 数|positions|seq_len|块表|
+|A|2|1|[19]|20|[7,2]|
+|B|0|3|[16,17,18]|19|[7,11]|
+|C|3|4|[0,1,2,3]|4|[9]|
+
+这里 A/B 假设共享前 16 个 token，表中 7 才能合法共享。批次顺序为 A/B/C，idx_mapping=[2,0,3]。拼接后 token 总数 8，query_start_loc=[0,1,4,8]，positions=[19,16,17,18,0,1,2,3]，seq_lens=[20,19,4]。query_start_loc 是本轮查询分段的前缀和；seq_lens 是各请求可见上下文长度，不是两种写法的同一个数字。
+
+按 b=16 算 slot_mapping=[35,176,177,178,144,145,146,147]。本轮 A 的 1 个查询可以读其 20 个有效上下文位置，B 的 3 个查询遵守各自位置的因果可见性，C 的 4 个查询从头建立历史。把拼接后的 8 个 token 当成一条普通序列会造成跨请求信息泄漏。
+@figure packing
+## 12.3 批次顺序可以变化
+gather_batch_req_state 会按当前执行类型与 token 数等排序，再获取对应的持久行。不能假定 Scheduler 字典插入顺序、GPU 行顺序、输出行顺序永远相同。输入有 idx_mapping，输出有 req_id_to_index；两端都必须显式映射。
+
+prepare_inputs 构造 IDs、位置、前缀和、长度和 logits_indices。普通生成通常每个完成输入前缀的请求取一个末位置隐藏状态；投机会取更多位置。图执行还可能补齐形状，真实 token 数和 padded token 数要分开。
+@walk runner2|GPUModelRunner.gather_batch_req_state|核对排序与 idx_mapping；持久请求行不是本轮 batch 下标。
+@walk runner2|GPUModelRunner.prepare_inputs|按 prefix sum、IDs、positions/seq_lens、logits_indices、InputBatch 五段阅读。
+@walk runner2|GPUModelRunner.prepare_attn|观察块表和 slot mapping 被组织成 Attention 需要的元数据。
+## 12.4 检查与排错
+~~~
+python labs/run.py pack --json
+~~~
+手算结果必须逐项相符。再设想两条请求交换批次顺序：持久行不变，但 idx_mapping、query_start_loc 分段、请求到 logits 的映射都要相应变化。若只有生成 token 归属错乱而模型数值正常，先检查这些映射，而非立即改 Attention 公式。
+@pause A 位于持久行 2、当前批下标 0、逻辑位置 19。这三个数矛盾吗？|不矛盾。它们分别描述存储中的请求行、这一批的顺序和序列中的位置；idx_mapping 与 positions 把它们接起来。
+@exercise idx_mapping=[2,0,3] 中的 2 是 token 位置吗？
+@answer 不是，它是该批第一条请求在持久状态存储中的行索引。token 位置由 positions 表示。
+@exercise query_start_loc=[0,1,4,8] 的 4 表示 B 的上下文只有 4 个 token 吗？
+@answer 不是。4 是拼接查询中 B 分段的结束偏移；B 的有效上下文长度在例子中为 19。
+@exercise graph padding 的无效槽位为什么不能随便当作真实位置写 KV？
+@answer 它们不是有效输入，错误写入可能覆盖别的请求或无关位置。后端使用 PAD_ID 等屏蔽语义，需要与真实长度一致。
+@next 输入张量准备好后，下一章进入模型本体。我们将把线性代数形状与真实 Qwen3 实现对齐。
+
+@chapter 13|四、GPU 执行与输出|模型本体：Qwen3 的一层如何计算
+@lead 本章解释推理引擎最终执行的函数。重点是张量形状、残差、GQA 和真实实现中的融合，不重新讲一遍训练流程。
+## 13.1 模型注册与 embedding
+模型加载器根据配置的 architecture 解析实现类，模型调用接收 input_ids 或 inputs_embeds、positions，以及可能的 PP 中间状态。设本轮有效 token 数 T、隐藏维 D，embedding 将 IDs[T] 变成 H[T,D]。权重对所有请求共享；各请求的激活和 KV 必须通过元数据隔离。
+
+推理中没有训练标签、交叉熵或优化器。某些性能统计里的“step”是引擎迭代，不是梯度训练步。本书微型模型虽然由训练得到权重，labs/trace 执行的仅是固定权重前向。
+## 13.2 从一个小形状推到 Q/K/V
+沿用上一章的混合批，本轮有 T=8 个有效 token。先把隐藏维缩到教学例子的 D=4，采用两头、每头两维。embedding 后是一张 8×4 的表：每行属于一个本轮 token。
+
+Q 投影把这张表变成另一张 8×4 的表，再把每行四个数分成两组，就得到 [8,2,2]：8 个 token，2 个头，每头 2 维。K 和 V 也可以这样看。拆头改变的是组织方式，仍要保留每个数的 token 与头归属。
+
+推广到实际模型，令查询头数为 Hq，KV 头数为 Hkv，单头维为 d。融合 QKV 投影一次产生 [T,(Hq+2Hkv)d]，随后拆成：
+
+|张量|形状|每个 token 保存什么|
+|Q|[T,Hq,d]|所有查询头|
+|K|[T,Hkv,d]|所有 KV 头的 K|
+|V|[T,Hkv,d]|所有 KV 头的 V|
+
+这里 Hq 与 Hkv 可以不同。GQA 让多组查询头共享一组 K/V，因此 KV 存储要用 Hkv 来算。第 4 章公式里的“KV 头数”，在这里就找到了来由。
+
+真实 Qwen3 还会对每头 Q/K 做 RMSNorm，再对 Q/K 应用 RoPE，随后才进入 Attention。V 不做同样的位置旋转。教学微型模型省略 Q/K Norm，尺寸推导可以借它练习，模型定义仍以 Qwen3 源码为准。
+
+@pause 把 A 和 B 在批次中的顺序换一下，RoPE 的位置也应该跟着换成拼接下标吗？|不应该。位置属于各自序列。打包改变执行布局，不应改变模型对同一条请求的位置含义。
+@walk qwen|Qwen3Attention.forward|找融合投影、split、Q/K Norm、RoPE、Attention 与 o_proj，并把每处输入输出对上上面的形状。
+## 13.3 Attention、残差与 MLP
+对于位置 i 的查询，分数为 q_i·k_j/√d，仅允许同请求且满足因果/窗口约束的 j。softmax 加权 V 后得到 [T,Hq,d]，展平并经 o_proj 回到 [T,D]。历史 K/V 来自缓存，本轮 K/V 也会写入缓存；跨层各有自己的值。
+
+概念上的 Pre-Norm 层可写成 H1=H+Attention(Norm(H))，H2=H1+MLP(Norm(H1))。实际 Qwen3DecoderLayer 把 residual 作为单独变量传递，RMSNorm 可能同时做残差加法；不要按 Python 变量名误判“漏加了一次 residual”。MLP 使用导入的 Qwen2MLP/SwiGLU 组件，典型形式为 (SiLU(XWgate)⊙XWup)Wdown，中间宽度 F 与 D 不同。
+@walk qwen|Qwen3DecoderLayer.forward|对照概念残差公式与融合实现，解释返回的 hidden_states、residual 为什么是一对。
+## 13.4 末层隐藏状态到词表
+多层处理结束还需最终归一化。普通生成只选择本次需要采样的位置，LM head 将 [R,D] 映射为 logits[R,V]，R 为要预测的位置数。这样不必为整段 prefill 的每个位置都生成完整词表分数；具体实现还受 prompt logprobs、投机及并行设置影响。
+
+logits 是未归一化分数，不是 token ID，更不是字符串。下一章讨论 Attention 后端，随后再把 logits 交给采样器。这个顺序解释了“模型算完”与“用户拿到文本”之间还有多少工作。
+@walk qwen|Qwen3ForCausalLM.compute_logits|定位 LM head 与 LogitsProcessor，确认它与 Transformer hidden state 的分工。
+## 13.5 本章检查
+对混合批 T=8，自己写出 embedding、Q/K/V、Attention 输出、MLP 中间和 LM head 的所有形状。再回答：如果只改变请求的物理块号，模型数学上应否变化？答案应是只要地址映射仍指向相同内容，数学语义应不变，不能改变 RoPE 的逻辑位置。
+@exercise GQA 的 Hkv 减小后，Q 的头数一定同步减小吗？
+@answer 不一定。查询头数可保持，多个 Q 头共享 KV 组；因此 KV 内存公式使用 Hkv。
+@exercise 为什么 RoPE 不能使用拼接 token 的全局索引？
+@answer 每条请求有自己的逻辑位置。拼接是执行布局，改变批次顺序不应改变模型的位置语义。
+@exercise Qwen3 层返回两个张量，是否等于产生两个 token？
+@answer 不是。它返回 hidden_states 与 residual 以支持融合计算；token 生成发生在后续 logits 与采样阶段。
+@next Attention 调用已经出现。下一章越过模型 API，检查分页缓存和 FlashAttention 怎样在同一个执行路径中合作。
+
+@chapter 14|四、GPU 执行与输出|Attention 后端、KV 写入与内核
+@lead 目标是把模型层的 Attention 调用追到后端，同时解释分页、FlashAttention 和 CUDA 线程组织分别优化什么。
+## 14.1 Attention 对象为什么还要一层后端
+模型只想表达“按这些 Q/K/V 和位置执行注意力”，实际 GPU 路径还取决于 dtype、头维、缓存格式、硬件、窗口、量化和支持特性。Attention 层通过后端与 forward context 获得执行所需的元数据和缓存视图，后端再选择或调用内核。
+
+forward context 将本轮共享信息传递给各层；层名等信息用于找到该层对应的缓存和元数据。若元数据或层映射错误，即便 qkv_proj 正确，也可能访问错误历史。分层抽象有成本，但使模型代码不必为每种 GPU 内核重写。
+@walk attention|Attention.forward|追踪 kv_cache、元数据、head reshape、KV 更新与 unified attention 调用；注意某些后端包含缓存更新，另一些由独立算子写入。
+## 14.2 写入本轮 KV，读取完整可见历史
+输入 A 的鱼处于位置 3。本层计算出 k3/v3，按 slot_mapping 写入物理槽，再让 q3 查询位置 0..3 的 K/V。prefill 则有多个查询位置，各有不同因果边界。Paged Attention 需要块表；计算不能把物理地址升序误当逻辑 token 升序。
+
+缓存写入与 Attention 计算可能由不同算子完成，也可能在特定后端中结合。不要一概说“FlashAttention.forward 内部必然负责 KV 写入”。应以 Attention 层和被选择 backend 的约定核对。
+@walk fa|FlashAttentionImpl.forward|查 query_start_loc、seq_lens、block_table 和缓存布局的消费，理解变长查询与分页历史如何进入同一次调用。
+## 14.3 不保存完整概率矩阵，怎样算出同一个结果
+先回忆普通 Attention：算分数 S=QKᵀ，做 softmax 得到 P，再算 PV。直接写法容易把很大的 S/P 存到 HBM，也就是 GPU 的大容量显存中，后面又把它读回来。
+
+FlashAttention 想减少这些中间读写。它把计算拆成小块，尽量在片上空间里处理，并只保留继续计算所需的统计量。要做到这一点，得先回答一个数学问题：分开算的 softmax，怎样拼回正确答案？
+
+我们用一个独立的小算例，只看一个查询、两个历史位置，V 每个位置只留一个数。分数为 [1,2]，V 为 [10,20]。直接计算时，减去最大值 2，两个权重比例为 [exp(-1),1]，结果为：
+
+@note 直接算的结果|O = (exp(-1)×10 + 1×20) / (exp(-1)+1) ≈ 17.311。这里的数只是用于推导归并，不是实际模型输出；显示舍入，计算保留完整精度。
+
+现在把两个位置分成两块。每块分别记录最大分数 m、减去 m 后的指数和 l，以及用这些指数加权 V 的和 u：
+
+|分块|m|l|u|
+|只含第一个位置|1|1|10|
+|只含第二个位置|2|1|20|
+
+两块的归一化基准不同，不能直接把各自结果平均。先把基准统一到 m'=max(1,2)=2：第一块的 l/u 都乘 exp(-1)，第二块保持不变。合并后仍得到 l'=exp(-1)+1，u'=exp(-1)×10+20，最后 O=u'/l'。
+
+一般地，旧统计为 (m,l,u)，新块为 (m_b,l_b,u_b)，可以这样合并：
+
+@note 归并公式|m'=max(m,m_b)；l'=exp(m-m')l+exp(m_b-m')l_b；u'=exp(m-m')u+exp(m_b-m')u_b；最后输出 u'/l'。
+@pause 为什么连旧的加权和 u 也要乘那个缩放系数？|因为 u 和 l 使用同一组未归一化权重。改变基准后，两者必须一起缩放，才仍表示原来的比例；只改分母会改变答案。
+
+于是，对每个查询行，只要维护 m/l/u，就能继续处理下一个块，不必把完整 S/P 写回显存。向量 V 的每个维度按同一组系数处理即可。
+
+真实内核还要处理因果 mask、长度、空块和数值精度。FlashAttention 保持所对应的精确注意力计算，浮点运算顺序可能带来舍入差异；它减少的是中间读写，而非随意丢掉注意力连接。
+
+@figure attention
+## 14.4 prefill 和 decode 的收益来源不同
+长 prefill 有大量查询，避免 N² 中间矩阵通常非常重要，也更容易形成较大的矩阵计算。普通单 token decode 的查询长度很小，完整分数矩阵本来就只有一行；瓶颈常转向模型权重和长历史 KV 的读取、并行度与调度开销。分页寻址、KV 量化、split-K/多段归并和合适批量会影响性能。
+
+因此不能把 FlashAttention 的 prefill 结果直接当作 decode 加速承诺。Paged KV 管“历史放哪里”，FlashAttention 管“计算如何分块和减少 IO”，CUDA thread block 管“线程怎么合作”；它们可共同存在，不是互斥的三款算法。
+## 14.5 数值实验
+~~~
+python labs/run.py attention
+~~~
+实验用与 trace 相同的微型模型最后查询，比较直接 softmax 与两段在线归并的结果。检查是两头输出在 float64 下最大误差小于 1e-12，并能说明误差阈值不是 BF16 GPU 的承诺。这里没有测量真实 HBM 流量，真实 IO 需 profiler 证据。
+@exercise FlashAttention 为什么通常不需要保存完整概率矩阵？
+@answer 每个查询行的归一化与加权和可用 m/l/u 在线合并；最终只需输出和必要统计，不必将所有 P 写回 HBM。
+@exercise 分页 KV 是否意味着 Attention 只看一页历史？
+@answer 不是。块表让内核按逻辑顺序访问所有可见块；窗口等模型规则才决定可见范围。
+@exercise 如何判断 decode 是否受内存带宽限制？
+@answer 需要结合长度/批量扫参、kernel 时间、有效读写量与 profiler 指标；不能仅凭“decode 通常 memory-bound”给当前实验下结论。
+@next Attention 和整层模型已经得到隐藏状态。下一章从 logits 出发解释一次采样及其状态更新。
+
+@chapter 15|四、GPU 执行与输出|logits、采样与生成规则
+@lead 本章区分模型分布、处理后的采样分布和最终 token，并解释为什么未完成 prefill 不能输出一个“猜到的答案”。
+## 15.1 每个请求选择哪些隐藏行
+prepare_inputs 的 logits_indices 指出需要取哪些 hidden state。普通完整 prefill/decode 对每个可生成请求取一个末位置；prompt logprobs 和投机需要其他位置。LM head 产生词表分数后，还要施加约束和采样参数。
+
+采样器可能为了统一执行布局计算候选，但未完成的 prefill chunk 的 num_sampled 必须为 0。C 只算到输入中途时，该位置的后继是输入里的后续 token，不应冒充用户最终续写。MRV2 的采样代码明确处理这一点。
+@walk runner2|GPUModelRunner.sample|从 hidden_states 的 logits_indices 到 model.compute_logits，再到语法掩码、普通或拒绝采样器。
+@walk sample2|Sampler.__call__|关注 num_sampled 与 prefill 完成条件，区分候选计算与实际接受的输出。
+## 15.2 参数作用于分数，不修改权重
+MRV2 apply_sampling_params 将分数转成适合处理的精度，再按该路径施加 bias、allowed token/min token、penalties、bad words、思考预算、温度及过滤等规则。采样后权重不变；同一模型可因参数不同产生不同 token。
+
+温度 T>0 时常见表达为 softmax(logits/T)；T 小会使分布更尖。vLLM 允许 temperature=0 表示贪心路径，不是做除以零。top_k 保留高分候选，top_p 按概率累计质量截断；具体组合顺序和后端实现应以本版本代码为准。不要把概念公式当作所有采样器都真实 materialize 了完整 softmax。
+@walk sample2|Sampler.apply_sampling_params|沿参数处理顺序阅读；注意某些调用通过 skip_top_k_top_p 把过滤交给后续采样后端。
+@walk sample2|Sampler.sample|观察选择 FlashInfer 等后端的条件，以及 greedy、显式 seed、logprob 模式如何影响分支。
+## 15.3 一个十二维 logits 的实际输出
+~~~
+python labs/run.py trace --json
+~~~
+实验先打印 prefill 末行的 12 维 logits 与概率，最大项为 8；下一轮用鱼执行，最大项为 1。展示保留约 3 位小数，计算始终使用完整 Python float 精度。这里使用贪心，因此无随机采样不确定性；真实模型实验需保存 seed、版本和后端，且不能承诺跨设备逐位一致。
+
+raw logprobs 与施加约束后的 processed logprobs 表示不同对象。用模型原始概率评估困惑度时，不能误把经过 top_p/penalty 的采样分布当作未加工模型分布。
+## 15.4 约束、结构化输出与投机接口
+结构化输出可通过语法状态生成允许 token 掩码；掩码必须对应当前接受的前缀。投机一次验证多个位置，再用接受/拒绝逻辑决定实际提交哪些 token，并修正进度、KV 与占位计数。本章只说明它们在哪个数据约定中接入，完整算法边界在扩展章说明。
+
+采样结果先是 token IDs 和统计，核心要更新历史并判定 stop，前端要解码。一个 ID 未必对应一个可立刻显示的完整字符，最终字符串仍未产生。
+@pause 一条请求尚未处理完输入，能不能把中间位置采到的候选当成最终续写？|不能。只有到达可生成边界的有效采样才应提交；未完成 prefill chunk 的有效采样数量是 0。
+@exercise temperature=0 与把 logits 除以 0 有何区别？
+@answer vLLM 用显式贪心逻辑选择最大项；它不是执行数学上非法的除法。
+@exercise 未完成 prefill chunk 为什么不能提交一个生成 token？
+@answer 当前最后计算位置不是完整输入的末位置，提交它会跳过尚未处理的输入；采样候选必须被抑制为无有效输出。
+@exercise top_p 改变后模型权重是否变化？
+@answer 不变。它改变从当前 logits 选择输出的规则，后续因生成历史不同又会影响后续输入。
+@next 下一章把 ID 变成文本，完整追踪 EOS、stop 字符串、客户端取消与资源回收。
+
+@chapter 16|四、GPU 执行与输出|结果回填、解码、停止与清理
+@lead 本章闭合第一条请求：从采样输出回到用户，并分清核心停止与前端字符串停止。
+## 16.1 结果先回核心账本
+Scheduler.update_from_output 根据请求映射取得采样结果，扣除在途 token，处理投机修正或异常，再更新请求历史和停止状态。普通 EOS、长度上限及显式 stop ID 可以在核心判断。A 生成鱼后继续；生成 EOS 后标记 FINISHED_STOPPED，产生最终核心输出。
+
+注意采样 EOS 时，EOS 的 KV 尚未计算，也无需再计算；停止只依赖它已被选择。核心已知序列长度为 5，computed 仍为 4。正常释放从活动请求映射删除对象，并不要求将所有旧字段归零。
+@walk sched|Scheduler.update_from_output|按行映射、在途计数、有效采样、停止/释放、构造核心输出阅读，遇到 spec/connector 分支单独标记。
+@walk stop|check_stop|比较 EOS、显式 stop token 和长度上限；不要把所有结束原因都写成 EOS。
+## 16.2 文本由前端增量解码
+OutputProcessor 查找前端状态，更新增量 detokenizer，构造 RequestOutput。字节级子词可能暂时不组成完整字符，因此每次 token 到达不保证产生可显示字符。stop 字符串还可能跨 token 边界出现，需要在新旧文本连接处检查。
+
+若 stop 字符串在前端被识别，而核心尚未停止，OutputProcessor 返回需 abort 的内部 ID。输出处理任务把 ABORT 发回核心。于是“用户已经看到结束”与“核心已接受取消并完成资源回收”之间存在明确的消息路径。
+@walk output|OutputProcessor.process_outputs|跟踪解码、输出队列、finished 清理和 reqs_to_abort 的产生，区分 num_cached_tokens 统计与真实 KV 长度。
+@walk detok|BaseIncrementalDetokenizer.update|关注 stop 字符串检查范围、输出截断、token 历史与文本表示的区别。
+## 16.3 取消不能直接覆盖正在写的内存
+用户断开会触发生成器取消清理并发送 abort。核心在处理结果前排空取消队列，防止接受过时输出。块是否可立刻归还还受最后调度序号与已处理序号控制；存在 GPU 在途写入时，释放需要延迟。
+
+随后 SchedulerOutput.finished_req_ids 告知 Worker 删除持久请求状态。KV 块归还的是引用和分配资格，GPU 缓存大张量仍在。若块有可复用缓存身份，ref=0 也可能保留内容。
+@figure lifecycle
+@walk sched|Scheduler._request_blocks_can_be_freed|检查 last_sched_seq 与 processed_step_seq 的安全条件；它保护的是 GPU 在途写入与内存复用。
+@walk sched|Scheduler._free_request|确认连接器可能延迟释放，finished IDs 与核心请求删除也不是一个概念。
+## 16.4 端到端检查
+现在重新运行 trace，依次指出：提交、两次调度、两次设备完成、两次核心更新请求记录、结束资源归还和零 token Worker 清理。再在源码中找到对应数据约定。教材模拟没有 HTTP 网络和真实 CUDA，因此它验证的是控制/数值示例；A100 实验才验证真实进程与设备路径。
+
+完整请求理解的标准是：你能解释每个 token 在哪一轮作为输入、何时有 KV、何时输出、谁判定停止、谁拥有待清理状态。只会画 API→GPU→API 三个框还不够。
+@pause EOS 已经被选出，是否还需要再送它进模型，以便给它建立 KV？|本书普通结束路径不需要。EOS 用来判定结束，不再产生下一轮；因此已知 token 数可以比实际 KV 前缀多一个。
+@exercise 核心 EOS 停止与 stop 字符串停止在哪里不同？
+@answer EOS/stop ID 可由核心判断；字符串需增量解码后在前端识别，必要时反向 abort 核心。
+@exercise 客户端断开为何不等于 CUDA kernel 已停止？
+@answer CPU 取消传播与 GPU 执行是不同机制；已提交工作可能继续，系统需要忽略过时结果并延迟安全释放。
+@exercise 已完成请求从核心 requests 删除后，为什么还需要 finished_req_ids？
+@answer Worker 有独立的持久状态镜像，必须通过后续计划获知结束并清理。跨层状态不会因删除 Python 对象自动同步。
+@next 单请求闭环已经完成。后续章节在同一架构上逐项增加重叠、图执行和多卡，检验哪些假设必须改变。
+
+@chapter 17|五、架构扩展与性能路径|异步调度与两代 Model Runner
+@lead 在同步主线已经清楚后，本章引入 CPU/GPU 重叠。重点是新增哪些状态约束，而不是把“异步”当成一个加速开关。
+## 17.1 三种异步是三回事
+HTTP async 让前端等待 I/O 时服务其他连接；引擎异步调度让 CPU 准备与 GPU 执行交错；CUDA stream 的异步提交则涉及设备工作与主机的关系。它们可以同时存在，但一个成立不推出其他两个成立。
+
+EngineCore 根据 max_concurrent_batches 选择队列路径。固定版本中，PP、async_scheduling、MRV2 都影响并发批次上限；单卡同步主线为 1。step_with_batch_queue 可以先推进后续工作，再等待最早的已提交批结果。队列顺序与请求依赖必须一致。
+@walk cfg|VllmConfig.max_concurrent_batches|读分支而非记默认数字；确认 PP、MRV2 和 async_scheduling 的组合。
+@walk core|EngineCore.step_with_batch_queue|跟踪队列入队、取旧 Future、语法就绪和结果回填；每份输出必须与原计划配对。
+## 17.2 输出占位为何出现
+下一轮准备时，前一轮采样结果可能尚未回到 CPU。AsyncScheduler 用 num_output_placeholders 等状态表示预期输出，并与 Runner 的 GPU 端状态配合。占位不是已经知道了具体 token ID；GPU 侧可在依赖满足后使用最新采样 ID 继续准备。
+
+如果请求被取消、抢占、投机拒绝或语法不能推进，先前乐观假设需要撤销或跳过。计数器、缓存发布和释放必须排除未完成/未接受区域。只把同步调度器“放到另一个线程”无法解决这些语义问题。
+@walk asched|AsyncScheduler._update_after_schedule|在基础提前记账外，检查什么时候增加输出占位，以及 chunk/spec/PP 对它的影响。
+## 17.3 MRV1 与 MRV2 的结构差异
+|方面|MRV1 路径|MRV2 路径|
+|源码入口|worker/gpu_model_runner.py|worker/gpu/model_runner.py|
+|持久状态与批布局|耦合较紧，批重排会影响状态组织|稳定请求行 + idx_mapping 采集|
+|输入准备|更多由 CPU 批结构组织|更多基于 GPU 持久状态和内核|
+|状态更新|批次/请求结构差量处理|staged writes 等显式更新|
+|共通要求|正确的请求身份、位置、块表、停止和输出协议|同左|
+
+这张表说明设计方向，不表示每个字段都可一一替换。文档中的 MRV2 状态与配置实际选择需要一起看；“文档说实验性”或“目录叫 v1”都不能代替本版本 use_v2_model_runner 的判断。
+@walk worker|Worker.init_device|定位 Runner 选择代码，比较模型 Runner V2 与旧 Runner 两个分支。
+## 17.4 延迟释放是正确性问题
+设 step 5 已写入队列，CPU 提前收到了取消，但 GPU 还可能写属于该请求的块。如果马上把块交给另一个请求，两个请求会访问同一内存。last_sched_seq 与 processed_step_seq 形成安全边界；对应 gate 开启时，先进入 deferred_frees，完成相关结果后再释放。
+
+官方测试 test_non_async_abort_defers_via_last_sched_seq 还说明：PP 等场景即便没有 async placeholder，也可能有在途工作。不能把“placeholder=0”当作唯一安全释放依据。
+@walk tests/v1/core/test_deferred_block_free.py|test_non_async_abort_defers_via_last_sched_seq|观察测试如何强制 gate、提交未完成计划、取消后保持块数不变，再回填结果恢复可用块。它验证安全约束，不是测量性能。
+@pause CPU 还不知道 A 的下一 token，能否凭空填好它的下一轮输入？|不能凭空补值。可以先做独立准备，或由明确的 GPU 状态/占位协议承接依赖；结果、进度和内存安全仍要核对。
+@exercise Python async 是否足以保证两个 GPU 批次可安全重叠？
+@answer 不足。还需设备依赖、输入缓冲区生命周期、占位/进度、输出计划配对和安全释放机制。
+@exercise 为什么 computed 和 placeholders 不能一起被解释为真实 KV？
+@answer 它们含乐观调度和预期输出信息，具体内容可能未完成或未接受；真实缓存发布必须满足完成与验证边界。
+@exercise 升级 Runner 时最少要重新验证什么？
+@answer 输入布局/排序、采样、块表增量、取消与在途释放、图路径和支持特性；不能只测试一个 hello 输出。
+@next 下面把 GPU 执行中的另一种重用讲清：CUDA Graph 重用执行结构，与 KV 缓存重用内容完全不同。
+
+@chapter 18|五、架构扩展与性能路径|编译、算子融合与 CUDA Graph
+@lead 目标是根据源码与日志分辨 eager、torch.compile、图捕获/重放，并提出一个能隔离开销来源的实验。
+## 18.1 三类优化分别省什么
+算子融合减少中间张量读写和 launch 数，例如残差加法与 RMSNorm 融合。torch.compile 分析图并生成/优化代码，其效果受动态形状与图断点影响。CUDA Graph 捕获一段 GPU 执行结构，后续用更新后的输入缓冲区重放，减少主机反复提交的开销。
+
+三者可以组合。CUDA Graph 不缓存第一次的输出，不替代模型计算，也不表示所有形状都能重放同一张图。第一次捕获与编译的时间不应混进稳态延迟后，再把结果拿来评价调度器。
+## 18.2 图重放为什么需要稳定地址与形状
+捕获路径对缓冲区地址、执行拓扑和形状有约束。Runner 可能把真实 token 数补到某个支持的形状，先更新输入缓冲区，再 replay。补齐会有额外计算或屏蔽开销；图选择必须同时满足请求数、token 数、uniform query、LoRA 等条件。
+
+MRV2 CudaGraphManager.dispatch 按候选描述符检查兼容性，没有匹配时返回 NONE，走 eager 或其他允许路径。看到某个批未走 FULL 图不必直接认定失败；应先查是否有兼容候选。
+@walk cg2|CudaGraphManager.dispatch|把 num_reqs、num_tokens、uniform_token_count、LoRA、max_query_len 与候选匹配条件写成表。
+@walk cg2|CudaGraphManager.run_fullgraph|定位 replay 及必要的前置同步，确认重放针对新的输入值。
+## 18.3 PIECEWISE、FULL 与 eager
+FULL 试图捕获较完整执行；PIECEWISE 可围绕不便编译或捕获的部分保留边界；eager 按正常调用执行。不同路径可使用同样的权重、KV 和调度数据约定，但输入准备、缓冲区与启动开销不同。具体支持随硬件和后端变化。
+
+短 decode 批的计算量较小时，CPU 和 launch 开销占比可能明显；长 prefill 的矩阵计算可能更突出。不能只用一个总 tokens/s 指标解释图带来的收益，应结合 CPU 间隙、GPU kernel 时间和 padding 量。
+@figure execution
+## 18.4 一个可证伪的 A/B 实验
+在 A100 固定同一模型、相同 prompt IDs、输出长度、并发、缓存冷暖、采样和版本。先 eager，再允许图，分别完成预热后测量。保留启动日志证明路径实际开启；记录 TTFT、输出吞吐、每 token 时间、图内外覆盖、显存开销。每组重复并报告分布，避免只取最好一次。
+
+若图配置降低了平均时间但 p99 变差，可能因形状回退、补齐或负载波动；若完全无差异，也可能瓶颈在大 GEMM/带宽而非 launch。先用证据定位，再提出优化。
+@pause 图重放采用相同结构，是否就会得到第一次的输出？|不会。每轮先更新输入缓冲区，再执行对应结构。它重用执行组织，仍然计算本轮输入。
+@exercise graph replay 为什么能处理新的 token？
+@answer 捕获的是执行结构和缓冲区使用方式；运行前将本轮输入写入合适缓冲区，再执行相同结构，并非返回旧结果。
+@exercise 图越大是否总是更好？
+@answer 不一定。捕获兼容性、内存、动态性、padding 和边界限制会改变收益，需要针对工作负载测量。
+@exercise eager 与图对照最关键的两个检查是什么？
+@answer 配置是否真正改变了执行路径，以及输入/输出长度、缓存状态、预热等条件是否一致；否则无法归因。
+@next 单卡执行链已经完整。多卡会改变张量归属、通信和进程边界，下一章逐个展开。
+
+@chapter 19|五、架构扩展与性能路径|TP、PP、DP、EP：多卡架构地图
+@lead 你目前只有单 A100，本章先做纸面张量推导与源码阅读。多卡命令属于以后有资源时的扩展，不要求现在伪造实验。
+## 19.1 先问切的是哪个维度
+TP 把单层的权重/计算分给多个 rank；PP 把不同层分给不同阶段；DP 放置多个服务副本并分配请求；EP 将 MoE 专家分配给不同设备。一个系统可组合多种并行，进程数和通信组因此由拓扑共同决定。
+
+DP 副本通常有各自模型与请求 KV，不能把副本增加误解为单请求天然拥有更大显存。PP 阶段持有自己层的权重与 KV，中间激活跨阶段传递。TP 的张量切分与 KV 头分布还取决于模型。
+@figure parallel
+## 19.2 用两个数算清列并行和行并行
+先不看大矩阵。令 X=[1,2]，W 的两行分别为 [3,4] 和 [5,6]。普通乘法得到 Y=[1×3+2×5,1×4+2×6]=[13,16]。
+
+现在把 W 按列分到两张卡。卡 0 拿第一列 [3,5]，算出 13；卡 1 拿第二列 [4,6]，算出 16。这两个结果属于不同的输出位置，需要时可以拼起来。这就是列并行的基本思路。
+
+如果改成按行分，卡 0 拿 X 的第一个数 1 与 W 的第一行，算出 [3,4]；卡 1 拿 2 与第二行，算出 [10,12]。它们都是同一输出的部分贡献，必须相加：[3,4]+[10,12]=[13,16]。
+
+|怎么切 W|各卡算到什么|怎样形成完整结果|
+|切输出列|不同输出位置|按需要拼接 / gather，或继续保留分片|
+|切输入行|同一输出的部分和|求和 / reduce|
+
+推广到 X[T,D]、W[D,F]：列并行切 F，得到本地 [T,F/TP]；行并行切 D，各自执行 XiWi，再按约定汇总。实际层还要核对张量布局、bias、量化和通信条件。
+
+QKV、o_proj 与 MLP 会按后续层的需要配套选择布局。某层的本地输出少了一部分维度，先问“它是否仍是分片、下一层期待什么”，再判断是否需要 gather。
+
+@walk linear|ColumnParallelLinear|对照小例子找输出维分片和 gather_output。想一想：如果下一层直接消费分片，为什么不必马上拼回完整张量？
+@walk linear|RowParallelLinear.forward|找本地 apply 与 all-reduce 分支。这里对应的是部分贡献求和，不是把两个输出简单接起来。
+## 19.3 KV 不能无条件除以 TP
+Qwen3Attention.__init__ 区分 KV 头数大于等于 TP 与小于 TP：前者可按组分片，后者可能复制 KV 头。故“模型 KV 总字节/TP”只在合适切分条件下成立。PP、滑窗和混合层会进一步改变各 rank 缓存规格。
+
+GPU 拓扑也影响通信成本。同样的卡数，NVLink、PCIe、跨节点网络与 rank 映射会影响延迟。TP 可以减小单卡权重压力，却增加层间通信；小模型/小批时通信可能抵消收益，不能把多卡视作固定线性加速。
+@walk qwen|Qwen3Attention.__init__|重点核对 total_num_heads、total_num_kv_heads、tp_size 与 num_kv_heads=max(...) 的逻辑。
+## 19.4 进程与输出边界如何变化
+多进程执行器建立 Worker 集群；模型执行涉及通信组，PP 最后阶段负责产生 logits/采样，再按协议把结果传给核心。DP 还需要请求路由与协调；EP 引入专家 token 分发与合并。前端→核心→输出处理的责任仍然存在，但内部不再是 UniProcExecutor 的直接对象调用。
+
+检查时画两个图：单卡 TP1 的真实最小进程边界；TP2×PP2 的概念层/张量分布。后者必须标明是架构推演而非已实测部署，不要在单卡上执行并等待不存在的第二张卡。
+@exercise DP=2 与 TP=2 对单个请求的模型计算有何差别？
+@answer DP 通常选择一个副本处理该请求；TP 让一个模型副本的各层由多个 rank 合作，需通信。
+@exercise 行并行的本地输出为何通常相加而非拼接？
+@answer 它们是同一输出维上不同输入维部分的乘积贡献，矩阵乘法要求求和。
+@exercise 单卡能否完成本章学习检查？
+@answer 能完成张量推导、进程图和源码条件分析；不能声称完成真实多卡通信/性能检查，多卡实验留待资源可用。
+@next 架构骨架已经覆盖单卡与分布式。下一章把量化、投机、多模态等扩展放回对应责任层。
+
+@chapter 20|五、架构扩展与性能路径|扩展如何接入，而非另造一套引擎
+@lead 本章提供完整架构的扩展地图，明确每个特性改变什么数据约定，以及深入研究前还必须补读什么。
+## 20.1 权重、KV 与激活量化是不同对象
+权重量化影响参数存储和线性层执行；KV 量化影响缓存容量、读写与 Attention 的反量化/缩放；激活量化影响中间张量和算子路径。某模型能加载低位权重，不推出 KV 同时低位。收益还取决于硬件内核支持、反量化成本和质量要求。
+
+量化配置通过模型层/权重加载与后端选择进入执行路径。研究需比较相同质量约束和真实内核，而非只用理论字节数比。单 A100 不支持所有新硬件低精度指令；选择路线前核对支持矩阵与日志。
+@walk quant|QuantizationConfig|阅读配置到 quant method 的抽象接口，理解它如何影响不同层；此处不是所有量化算法的实现教程。
+## 20.2 投机解码修改“每步一个输出”的假设
+草稿模型或其他 proposer 提出候选，目标模型验证多个位置，接受部分候选并必要时采样修正。严格保持目标分布需要正确的接受/拒绝算法；简单比较 argmax 或直接保留所有草稿并不等价。
+
+调度增加 spec token 和 lookahead 容量，Runner 增加验证位置与输出长度，Scheduler 在回填时修正未接受区域的进度和占位，缓存只发布可靠部分。可能每步输出多个 token，也可能拒绝很多而收益差。不能只报接受率，不报额外模型成本和端到端吞吐。
+@walk spec|SpeculativeConfig|辨认 proposer 类型、候选数量与配置约束；算法研究还需继续追对应 proposer 和 rejection sampler。
+## 20.3 LoRA、多模态与 MoE
+LoRA 给同一基础模型选择不同 adapter，影响批混合、权重侧执行和缓存身份，不能跨不兼容 adapter 复用 KV。多模态输入增加媒体预处理、encoder 预算、特征/占位映射和缓存；并非所有内容都先变成文本 token。MoE 层则引入路由、专家容量和 EP 通信。
+
+这些特性分别扩展输入数据约定、调度资源和执行状态。研究者不能只改 Scheduler 的 token 预算，就假设特殊输入能安全任意切分。例如图像占位范围、encoder 预算和模型约束可能要求某些段作为整体安排。
+@walk tests/v1/core/test_scheduler.py|test_schedule_partial_requests|官方多模态测试展示 encoder 预算如何使部分请求被切分或本轮不调度；RUNNING 不等于每步必算。
+## 20.4 P/D 分离与远程 KV
+Prefill/Decode 分离将两类工作放到不同实例，prefill 的 KV 需传给 decode 端。收益可能来自资源专门化和排队隔离，成本是传输、布局兼容、准入、失败恢复和生命周期。它不等于同一个服务里启用 chunked prefill。
+
+KV connector 在 Scheduler 与 Worker 两侧都有职责：前者协调匹配与分配，后者执行/等待设备侧搬运，完成状态回到引擎。核心存在 WAITING_FOR_REMOTE_KVS 等状态，说明“num_computed 已前移”在传输未完成时也不能当作可读取证明。
+@walk connector|KVConnectorBase_V1|先读 scheduler/worker 角色划分与连接器接口，深入时再选择具体传输实现。此书不声称逐行覆盖全部连接器。
+## 20.5 混合缓存和研究边界
+滑窗 Attention 可丢弃不再可见的历史；Mamba 类状态不是普通逐 token Dense KV。Hybrid coordinator 根据组与规格安排内存，本版本特定 Mamba 对齐路径支持部分前缀/COW。此时用单一 b、单层相同布局、所有历史永远保留的图会失真。
+
+本章检查是任选一种扩展，填写“输入变化、调度变化、缓存变化、Runner/内核变化、输出/正确性变化”五栏，并给出下一步源码位置。掌握完整架构不意味着已经掌握仓库每个硬件后端；知道边界和能正确定位，是深入研究的前提。
+@pause 把权重改为 INT4 后，KV 是否也自动成为 INT4？|不会。权重与 KV 是不同存储对象、不同配置和执行路径，要分别确认格式与支持。
+@exercise 权重 INT4 是否直接意味着每 token KV 缩小到原来的四分之一？
+@answer 不是。KV dtype 与权重量化是不同配置，需独立核对。
+@exercise 投机接受率高是否一定更快？
+@answer 不一定。草稿成本、验证效率、批量、内存与 CPU 管理都影响净收益，需要同负载端到端对照。
+@exercise P/D 分离至少新增哪三类正确性问题？
+@answer KV 内容/布局与模型身份兼容、异步传输完成及失败恢复、跨实例资源所有权与安全释放；还需考虑路由和缓存统计。
+@next 下一章把架构理解转化为可靠实验：先证明测量对象和执行路径，再谈加速结论。
+
+@chapter 21|六、实验、复查与架构检查|单 A100：从可信测量到源码实验
+@lead 本章提供可执行实验顺序和检查格式。CPU 实验已可在本机运行；GPU 脚本需你在 Linux A100 环境执行，本教材不伪造实测数据。
+## 21.1 先定义观察量
+TTFT 是请求发出到首个可见生成输出的时间，含客户端、服务排队、输入处理和首轮执行等所采用边界内的成本。ITL 是连续可见 token 的间隔；TPOT 常用 (末 token 时间-首 token 时间)/(输出 token 数-1)，分母为零时不定义。E2E 为请求发出到完成。必须声明时间在客户端还是服务端采集。
+
+SSE chunk 可含多个 token；字符数不是 token 数。离线 LLM.generate 返回所有结果后才记录的时间，只能用于整批完成/吞吐，不能伪称单请求 TTFT。成功完成的输出 token/s、输入 token/s、总 token/s 也必须分开命名。
+~~~
+python labs/run.py metrics
+~~~
+合成时间线 [0.20,0.24,0.31] 秒，提交时刻 0，结束 0.32：TTFT=0.20，ITL=[0.04,0.07]，TPOT=0.055，E2E=0.32。这些是定义演算，不是 A100 成绩。
+## 21.2 A100 环境与最小实际执行
+先把整个 vllm详解 目录复制到 Linux 服务器，并 cd 到该目录。使用独立环境与模型本地路径，先运行 nvidia-smi，记录 A100 是 40GB 还是 80GB、驱动、空闲状况。CPU 章节不需要先完成这一步。下面是 Linux 命令，不能照搬进当前 Windows Python；若已有学校维护的兼容 vLLM 环境，可直接核对版本后使用。
+~~~
+nvidia-smi
+uv venv --python 3.12 .venv-vllm030
+uv pip install --python .venv-vllm030/bin/python vllm==0.30.0 --torch-backend=auto
+export MODEL=/absolute/path/to/Qwen3-0.6B
+VLLM_USE_V2_MODEL_RUNNER=1 .venv-vllm030/bin/python labs/a100_offline.py --model "$MODEL" --out results/a100.json
+~~~
+安装命令依据 [v0.30.0 官方 GPU 安装文档](https://docs.vllm.ai/en/v0.30.0/getting_started/installation/gpu/)，需先安装 uv 并核对驱动与 wheel 兼容性。脚本计时包围阻塞的 LLM.generate；不把前端进程的 CUDA synchronize 当作跨进程同步。模型需事先从官方来源获取并固定 revision，网络不通时使用已准备的本地目录。脚本关闭 async、前缀缓存和图，TP=1，显存利用率 0.7，max_model_len=2048，预算 256，max_num_seqs=8。它打印实际模板 IDs、完整配置、软件/GPU 信息及每次整批耗时。若安装或 Runner 支持不满足，保留报错和配置并定位，不应悄悄换版本后继续声称完成同一实验。
+
+检查：实际版本是 0.30.0；启动日志确认 MRV2；输出包含至少一个非空 token 序列及 finish_reason；重复运行的负载可复查。真实 Qwen 输出不要求是“鱼”。脚本可改变并发和 prompt 重复数，但不报告伪 TTFT。
+## 21.3 按变量建立四组实验
+|组别|固定项|只改变的变量|应保存的证据|
+|形状组|模型、采样、缓存/图/async 设置|prompt 长度、并发、输出上限|实际输入/输出 token 数、批耗时、显存|
+|缓存组|输入集合、执行路径|APC 开关、冷/热状态|命中 token、时间、重置边界|
+|执行组|相同负载和缓存状态|eager/图，之后单独切 async|启动日志、图覆盖、CPU/GPU 时间|
+|压力组|模型和采样|并发、长度至 KV 紧张|抢占、等待、完成率、尾延迟|
+
+每组先暖机再测，至少重复 5 次，保留全部样本，报告中位数与分位数。学校服务器可能共享，应记录干扰并尽可能隔离。没有达到配置长度的样本，不能直接当成同样长序列做公平比较。
+## 21.4 从官方测试学习正确性约束
+test_stop_string 使用 mock 核心构造输出，验证前端字符串停止、内部 abort 与外部 ID 返回。test_non_async_abort_defers_via_last_sched_seq 验证在途取消不能提前归还块。它们不是吞吐测试，而是把复杂时序压缩成可验证的不变量。
+
+在完整官方 checkout 的开发环境中，可按固定 commit 阅读并运行对应测试。选择性快照不具备完整依赖，以下命令必须在完整仓库中执行；GPU/依赖要求也需看 fixture。首次学习先读 setup/action/assert，再解释它防止的真实故障。
+~~~
+python -m pytest tests/v1/core/test_deferred_block_free.py -k non_async_abort_defers_via_last_sched_seq -q
+python -m pytest tests/v1/engine/test_output_processor.py -k stop_string -q
+~~~
+@walk tests/v1/engine/test_output_processor.py|test_stop_string|检查 include_stop_str_in_output、内部 ID abort 和外部 ID 收集三种断言；不要只看测试名。
+## 21.5 研究记录应能否定自己的猜想
+用一句可证伪假设开头，如“在固定短 decode 负载下，CPU 提交间隙占端到端时间显著比例”。先给能推翻它的观察：若 GPU 已满且图开关无影响，就不支持当前解释。记录原始数据、环境、命令、日志、异常样本和结论范围。
+
+不要在第一周同时修改调度、缓存和 kernel。先复现基线，再以一个变量的实验理解系统。科研的创新点应建立在可定位瓶颈和正确性约束上，而非功能名组合。
+@pause 离线接口直到整批完成才返回，你用这段耗时能算出首 token 到达时间吗？|不能。没有采集首 token 的时刻，就只能用它分析整批延迟或按声明边界计算吞吐。
+@exercise 为什么离线脚本不能直接给 TTFT？
+@answer LLM.generate 在整批完成后返回，提交与返回时间没有首 token 到达时刻；只能测整批延迟/吞吐。
+@exercise 输出长度由 max_tokens=128 设置，是否每次必然生成 128 个？
+@answer 不一定，EOS/stop 等可提前终止。比较时要记录真实输出长度，必要时采用明确的长度控制并说明语义变化。
+@exercise 失败、超时样本能否从吞吐统计中静默删除？
+@answer 不能。应报告完成率和错误，说明吞吐分子、测量时窗及是否包含失败；否则结果不可复查。
+@next 最后一章用架构考试收束：能否从症状走回具体状态和函数，而不仅复述优化名词？
+
+@chapter 22|六、实验、复查与架构检查|毕业作业：重建完整架构与诊断
+@lead 完成标准是你能独立解释真实请求的生命周期，定位性能/正确性问题，并知道扩展会改变哪些假设。
+## 22.1 不看教材画六层图
+第一层：HTTP/离线入口、渲染与 Tokenizer。第二层：AsyncLLM、输入输出处理器、collector 和客户端。第三层：EngineCore 循环、请求表、调度器和 KV 管理。第四层：Executor/Worker、启动与设备资源。第五层：Runner 状态、输入打包、Attention 元数据、模型、采样。第六层：GPU 权重、KV、图、内核及多卡通信。
+
+在图中标出进程边界、CPU/GPU 边界、消息类型、请求 ID、输入输出、状态拥有者。再用另一种颜色画返回链与取消链。若你把 Worker 画成每种配置都独立进程，或把 OutputProcessor 放进 GPU，应回前文复查。
+## 22.2 把 A 的两轮过程完整讲出来
+不用跳过中间层：教学 IDs 提交 → 前端登记 → ADD → 核心 Request WAITING → schedule A3 → 分配块并提前记账 → Runner 持久状态/输入元数据 → 模型写 KV 与 hidden → logits/采样鱼 → 核心更新请求记录并输出 → 前端解码 → 下一轮 A1 输入鱼 → 采样 EOS → 核心结束、安全回收 → Worker 零 token 清理。
+
+每一步写“来自上一步的输入”和“交给下一步的输出”，再写至少一个状态变化。检查必须提到：鱼在下一轮才获得 KV；EOS 不再前向；computed 会提前记账；前端缓存命中计数不是全部 KV 长度。
+## 22.3 五道架构诊断题
+题一：文本正确，但两条并发请求的结果偶尔对调。先检查请求 ID、idx_mapping、req_id_to_index 与输出路由，再查模型。题二：GPU 显存长期占用高但新请求仍可运行。先看常驻池和 ref/free，而不是断言泄漏。题三：长输入负载使短输出等待变长。分析队列、prefill chunk、预算和 KV 压力，而非只改温度。
+
+题四：取消后偶现别的请求输出异常。检查在途块释放、缓冲区复用和 stale 输出，而非仅在 API 添加 try/except。题五：开图后没有提速。检查路径实际选择、形状命中、padding、预热与瓶颈证据，不能用“CUDA Graph 失效”替代分析。
+## 22.4 评分标准
+|维度|分值|通过要求|
+|边界与所有权|20|进程/设备边界正确，知道谁持有哪份状态|
+|完整数据流|25|文本→IDs→计划→张量→logits→IDs→文本连续|
+|调度与缓存|20|计数、块地址、命中/引用/安全释放准确|
+|执行与扩展|15|能区分 Runner、Attention、图、并行和扩展数据约定|
+|证据与实验|20|固定版本、可运行命令、原始结果与边界清楚|
+
+建议总分至少 80，且不允许出现提前覆盖在途 KV、跨请求 Attention 混读这类正确性错误。给自己的图逐项找源码证据；无法定位的框先标成待确认。
+## 22.5 从学架构走向研究
+通过检查后，再选择一条技术路线深入：调度/服务、KV/内存、Attention/kernel、编译/执行、分布式通信或量化/投机。每条路线都要保留其他层的正确性数据约定。先复现一个基线和一个可解释瓶颈，再阅读该问题最新论文并建立对照。
+
+参考教程的价值是循序渐进、固定源码、实验与练习形成闭环。本书沿用这种教学方法，技术结论以 vLLM 官方固定源码、设计文档和论文为证据。你现在应能找到问题在哪层，而不再把所有优化都归成“模型跑快一点”。
+@pause 你的图里如果只有“API → GPU → API”，最先补哪几步？|先补文本整理、核心请求/调度、KV 管理、Runner 输入准备、采样与前端解码，再补消息与清理路径。
+@exercise 不看目录，写出在线请求从路由到模型再回文本的十二个以上节点。
+@answer 可用第 6、8、12、13、15、16 章核对。必须覆盖渲染、输入处理、客户端消息、核心调度、KV 分配、Runner 打包、模型/采样、核心更新请求记录、前端增量解码与停止；只列入口和 GPU 还需要补上中间步骤。
+@exercise 如果研究 KV 量化，哪些层必须同时检查？
+@answer 至少包括缓存规格/容量计算、分配与传输身份、写入/读取和 scale 布局、Attention 后端支持、质量与性能测试，分布式和 APC 也可能受影响。
+@exercise 下一次遇到不懂的分支，如何继续而非重新从头读仓库？
+@answer 固定配置与症状，定位责任层，找调用者—被调方—结果消费者闭环，补状态图，选官方测试并做最小复现，然后才修改代码。
+@next 正文结束后，继续阅读附录的逐行导读、术语表和实验清单；它们用于复查，不替代前面的连续学习。
+
+@chapter 23|附录、证据与复习|逐行导读、术语和阅读路线
+@lead 这章是一张可长期使用的复查桌：对 EngineCore.step 做细读，再把复杂函数拆成可检查的责任段。
+## A.1 EngineCore.step 的逐句责任
+下方源码卡片包含完整函数；本地源码页还能查看相邻上下文。先自行标注，再展开本节解释。
+@fullwalk core|EngineCore.step|单批次主线完整函数，固定 commit；本节说明正常文本生成分支。
+从 has_requests() 开始：无请求/清理则返回空输出和未执行标志。schedule() 不计算模型，它构造 SchedulerOutput 并推进乐观计数。execute_model(...,non_block=True) 提交计划，得到未来对象。get_grammar_bitmask 准备采样合法集合；普通无语法请求走空约束。
+
+future.result() 取得执行结果。若 result is None，调用 sample_tokens(grammar_output) 获取采样输出；这是 forward/sample 分离协议。_process_aborts_queue() 在更新请求记录前处理取消，避免把迟到结果重新当有效输出。update_from_output(plan,result) 必须使用同一轮 plan，才能扣对在途计数和定位请求。最后附加调度统计并返回，本轮是否真正安排 token 由 total_num_scheduled_tokens 判断。
+
+用 A 的 prefill 代入每句：plan={A:3}；提前 computed=3；future 对应模型本轮；sample 返回 token 8；更新请求记录后 all_token_ids=[11,10,7,8]、in_flight=0。用最后清理轮代入则 total=0，仍可能需要 Worker 状态清理。
+|真实行号|输入 → 操作 → 输出|此处不能误读成什么|
+|598–599|询问 Scheduler 是否还有请求/待清理；没有则返回|不是只检查 RUNNING 数|
+|600|请求状态 → schedule → 本轮 SchedulerOutput|不是执行模型|
+|601|计划 → execute_model(non_block=True) → Future|不是已收到 token|
+|602|本轮计划 → grammar bitmask → 采样约束|普通无语法请求不需要生成语法|
+|603–606|建立统计与错误上下文|不是另一次模型计算|
+|607|Future → result → forward 输出或 None|此处是结果取得点|
+|608–609|若 None，继续 sample_tokens → ModelRunnerOutput|None 不是失败标志|
+|613|取消队列 → 核心终止状态|不能等采纳迟到输出之后再忽略取消|
+|614–616|原计划 + 模型结果 → 核心更新请求记录/输出|不能配错轮次或请求行|
+|617|附加迭代统计|不改变模型权重|
+|619|输出字典 + 是否安排了 token|清理步可有输出/状态工作却无前向|
+
+再读 Scheduler._update_after_schedule：1531–1534 对本轮每条请求同时增加 computed 与 in_flight；1535–1537 在 gate 开启时记录最后调度序号；1538–1543 判断是否仍是输入 chunk 和语法相关请求；1567–1568 换成新集合，而不是对旧集合 clear，因为计划仍可能引用旧集合。这最后一个 Python 对象别名细节也会影响跨轮正确性。
+
+槽位计算另有一个实现粒度要核对：MRV2 内核用 kernel_block_size 做除法和余数，配置的 KV 分配块与后端 kernel 块可以存在布局转换。本书手算显式令两者均为 16、CP=1、普通映射开启；不能把演算公式不加条件地套到所有后端/CP 配置。
+
+## A.2 长函数如何分段，而非只看前二十行
+|函数|应分出的责任段|逐段的产物|
+|Scheduler.schedule|running、waiting、容量/准入、计划构造、提前记账|每请求 token 数与块增量|
+|GPUModelRunner.execute_model|状态更新、零 token、batch/graph、inputs/attn、model、保存状态|hidden + 待采样状态|
+|Scheduler.update_from_output|完成序号、在途扣减、行映射、接受结果、停止/释放、输出|核心新状态与 EngineCoreOutput|
+|OutputProcessor.process_outputs|身份查询、统计、解码、用户输出、结束、反向 abort|RequestOutput/collector 与 abort IDs|
+
+读每段时，先圈出写状态的语句和消费返回值的调用者，再看校验和特殊分支。假设某分支没有进入，必须写出配置理由。不要把本书源码卡片截取的开头当成完整函数；所有卡片都标明展示范围并可跳转完整源文件。
+## A.3 术语对照
+|术语|在本书中的精确定义|
+|prefill|处理输入前缀的查询与 KV 建立，可拆成多个 chunk|
+|decode|在已有历史上执行新增输入并继续生成|
+|known tokens|核心当前已知 token，包括 prompt 与已接受输出|
+|scheduled/computed|调度覆盖的前缀进度，可能包含在途工作|
+|KV block|token 地址分配单位，不是 CUDA thread block|
+|block table|逻辑块到物理块的映射|
+|slot mapping|本轮每个输入 token 对应的写入槽位|
+|APC|自动前缀缓存，复用匹配前缀的 KV|
+|cached request data|Worker 已知请求的更新数据约定，不等于 APC 命中|
+|Runner|把计划变为设备输入并执行模型/采样的组件|
+|backend|特定 Attention 等算子的实现路径|
+|fence|用于判断在途工作已安全完成的边界|
+
+## A.4 建议的四周阅读路线
+第一周每天一组责任闭环：D1 章1–3并打印入口；D2 章4–6画提交路径；D3 章7–8跑 trace；D4 章9–11手算预算/块/引用；D5 章12跑 pack；D6 章13–16跑 attention 并讲完整返回链；D7 做第22章前两项检查。每天先回忆前一天输出如何成为今天输入。
+
+第二周深入章17–18及相关官方测试，做源码状态手推；第三周在 A100 执行章21基线与单变量实验，补 GPU profiling；第四周学习章19–20，选择一条研究路线但暂不为了新意同时修改多层。每天产物应是图、状态表、命令结果和疑问清单之一，不是“已读多少页”。
+## A.5 资料与声明
+教学组织参考 [白木原教程](https://tutorial.baimuyuan.online/)，实际阅读了其 MiniMind 与 Harness 教程目录及推理/Agent Loop 示例章节，借鉴从小例子到源码、练习与实验闭环的方法；未将该网站当作 vLLM 技术事实来源。
+
+主要技术依据为 [官方固定源码](https://github.com/vllm-project/vllm/tree/ced6857afa0ea7b2e3f0846a62e1394e90f15607)、快照中的 docs/design/ 设计文档、[PagedAttention 论文](https://arxiv.org/abs/2309.06180) 与 [FlashAttention 论文](https://arxiv.org/abs/2205.14135)。正文描述以固定版本实现为准，2023 论文不是所有后续版本细节的保证。
+
+本地执行范围：标准库 CPU 数值/控制实验、源码身份与链接检查、页面交互与版面检查。没有在这台 Windows 主机上运行 A100/vLLM GPU 基准，没有生成虚构吞吐。旧图解保存在独立入口；其教学参数与旧模拟不能混作本书真实 Runner 轨迹。
+@pause 看见一个返回值以后，读代码的下一步是什么？|回到调用者，追它如何被消费。这个值是否触发继续采样、取消、结束或后续执行，决定了它的含义。
+@exercise 对着完整 EngineCore.step，指出哪句真正调用模型，哪句提交 token 历史。
+@answer execute_model 提交设备执行，具体模型调用在 Runner；Scheduler.update_from_output 处理结果并更新历史。schedule 只安排并提前记账，不完成矩阵计算。
+@exercise 如果在本书找不到某个新硬件后端，教材是否已经解释了它的全部实现？
+@answer 没有。本书建立核心架构和定位方法，选定后端主线做直接源码导读。新硬件或特殊模型需沿注册、元数据、执行和测试继续验证。
+@exercise 第一周最后应交什么，而不是交“读完了”？
+@answer 一张带边界的六层架构图、一份 A 两轮字段账本、pack/prefix/attention 的复算结果，以及至少三个问题对应的源码证据。
+@next 可使用左侧搜索、源码索引和实验面板反复复查；每次改变配置，重新标出你走的分支。

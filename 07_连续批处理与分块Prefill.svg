@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1868" viewBox="0 0 1600 1868" role="img" aria-labelledby="title7 desc7"><title id="title7">连续批处理：每轮 batch 都会变化</title><desc id="desc7">A 完成即可让出执行位置；长 Prompt 也能拆成几轮与 Decode 共同执行。。解释每步输入、处理与输出。</desc><defs><marker id="arr7" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1868" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 07 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">连续批处理：每轮 batch 都会变化</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">A 完成即可让出执行位置；长 Prompt 也能拆成几轮与 Decode 共同执行。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → A 在 R1 到达；B/C 在 R2 到达；T=4；B 命中 2-token 前缀</text>
+<rect x="56" y="284" width="1488" height="417" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  五轮时间线：格子表示新计算量，横向不是实际耗时</text>
+<text x="400" y="372" font-size="24" fill="#2563eb" font-weight="700" text-anchor="middle">R1</text>
+<text x="620" y="372" font-size="24" fill="#2563eb" font-weight="700" text-anchor="middle">R2</text>
+<text x="840" y="372" font-size="24" fill="#2563eb" font-weight="700" text-anchor="middle">R3</text>
+<text x="1060" y="372" font-size="24" fill="#2563eb" font-weight="700" text-anchor="middle">R4</text>
+<text x="1280" y="372" font-size="24" fill="#2563eb" font-weight="700" text-anchor="middle">R5</text>
+<text x="100" y="440" font-size="23" fill="#14243b" font-weight="700" text-anchor="start">请求 A</text>
+<rect x="295" y="402" width="210" height="62" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="400" y="440" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">P3 → 鱼</text>
+<rect x="515" y="402" width="210" height="62" rx="12" fill="#fff1df" stroke="#d9e3ee"/>
+<text x="620" y="440" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">D1 → EOS</text>
+<rect x="735" y="402" width="210" height="62" rx="12" fill="#f0f3f7" stroke="#d9e3ee"/>
+<text x="840" y="440" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">完成</text>
+<rect x="955" y="402" width="210" height="62" rx="12" fill="#f0f3f7" stroke="#d9e3ee"/>
+<text x="1060" y="440" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">—</text>
+<rect x="1175" y="402" width="210" height="62" rx="12" fill="#f0f3f7" stroke="#d9e3ee"/>
+<text x="1280" y="440" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">—</text>
+<text x="100" y="518" font-size="23" fill="#14243b" font-weight="700" text-anchor="start">请求 B</text>
+<rect x="295" y="480" width="210" height="62" rx="12" fill="#f0f3f7" stroke="#d9e3ee"/>
+<text x="400" y="518" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">未到达</text>
+<rect x="515" y="480" width="210" height="62" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="620" y="518" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">H2+P1 → 鱼</text>
+<rect x="735" y="480" width="210" height="62" rx="12" fill="#fff1df" stroke="#d9e3ee"/>
+<text x="840" y="518" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">D1 → EOS</text>
+<rect x="955" y="480" width="210" height="62" rx="12" fill="#f0f3f7" stroke="#d9e3ee"/>
+<text x="1060" y="518" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">完成</text>
+<rect x="1175" y="480" width="210" height="62" rx="12" fill="#f0f3f7" stroke="#d9e3ee"/>
+<text x="1280" y="518" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">—</text>
+<text x="100" y="596" font-size="23" fill="#14243b" font-weight="700" text-anchor="start">请求 C</text>
+<rect x="295" y="558" width="210" height="62" rx="12" fill="#f0f3f7" stroke="#d9e3ee"/>
+<text x="400" y="596" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">未到达</text>
+<rect x="515" y="558" width="210" height="62" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="620" y="596" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">P2 / 7</text>
+<rect x="735" y="558" width="210" height="62" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="840" y="596" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">P3 / 7</text>
+<rect x="955" y="558" width="210" height="62" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1060" y="596" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">P2 → ID10</text>
+<rect x="1175" y="558" width="210" height="62" rx="12" fill="#fff1df" stroke="#d9e3ee"/>
+<text x="1280" y="596" font-size="20" fill="#14243b" font-weight="400" text-anchor="middle">D1 → EOS</text>
+<text x="80" y="670" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">P=Prefill 新算 token；D=Decode；H=命中缓存，不占本轮新计算 token 预算。</text>
+<rect x="56" y="723" width="1488" height="424" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="762" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  计划、输入和输出全部衔接上一轮</text>
+<rect x="80" y="799" width="220" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="831" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">轮次 / 用量</text>
+<rect x="300" y="799" width="340" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="314" y="831" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">调度字典</text>
+<rect x="640" y="799" width="390" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="654" y="831" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">packed IDs</text>
+<rect x="1030" y="799" width="490" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1044" y="831" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">轮末结果</text>
+<rect x="80" y="853" width="220" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="885" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R1：3/4</text>
+<rect x="300" y="853" width="340" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="314" y="885" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">{A:3}</text>
+<rect x="640" y="853" width="390" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="654" y="885" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[11,10,7]</text>
+<rect x="1030" y="853" width="490" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1044" y="885" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A→鱼，发布前 2-token 完整块。</text>
+<rect x="80" y="907" width="220" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="939" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R2：4/4</text>
+<rect x="300" y="907" width="340" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="314" y="939" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">{A:1,B:1,C:2}</text>
+<rect x="640" y="907" width="390" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="654" y="939" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[8,7,10,7]</text>
+<rect x="1030" y="907" width="490" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1044" y="939" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A→EOS；B→鱼；C 已算2/7。</text>
+<rect x="80" y="961" width="220" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="993" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R3：4/4</text>
+<rect x="300" y="961" width="340" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="314" y="993" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">{B:1,C:3}</text>
+<rect x="640" y="961" width="390" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="654" y="993" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[8,8,11,10]</text>
+<rect x="1030" y="961" width="490" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1044" y="993" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">B→EOS；C 已算5/7。</text>
+<rect x="80" y="1015" width="220" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="1047" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R4：2/4</text>
+<rect x="300" y="1015" width="340" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="314" y="1047" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">{C:2}</text>
+<rect x="640" y="1015" width="390" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="654" y="1047" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[7,8]</text>
+<rect x="1030" y="1015" width="490" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1044" y="1047" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">C 完成 Prompt，模拟输出10。</text>
+<rect x="80" y="1069" width="220" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="1101" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">R5：1/4</text>
+<rect x="300" y="1069" width="340" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="314" y="1101" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">{C:1}</text>
+<rect x="640" y="1069" width="390" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="654" y="1101" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[10]</text>
+<rect x="1030" y="1069" width="490" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1044" y="1101" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">C 模拟输出 EOS，全部结束。</text>
+<rect x="56" y="1169" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1208" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  Continuous Batching 与 Chunked Prefill 各做什么</text>
+<text x="80" y="1245" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">连续批处理：每轮更新参与请求，A 完成后不再占 R3 的执行位置，不必等待整批请求一起结束。</text>
+<text x="80" y="1279" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">分块 Prefill：C 的 7-token Prompt 拆成 2+3+2；位置继续递增，后续 chunk 读取之前 chunk 的 KV。</text>
+<text x="80" y="1313" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">R2 共算 4 token，却来自 3 个请求；“请求 batch 大小”不能独自表达本轮计算量。</text>
+<text x="80" y="1347" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">总共新算 14 token：A4+B2+C8；B 另复用 2-token KV；三个 EOS 均未进入前向。</text>
+<rect x="56" y="1417" width="1488" height="192" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1456" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  token 预算的取舍</text>
+<text x="80" y="1493" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">较大 Prefill chunk 往往提高大矩阵执行效率，但可能拉长单轮、影响已在生成请求的 token 间隔。</text>
+<text x="80" y="1527" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">较小 chunk 更容易插入 Decode，但会增加调度、发射及重复访问开销；应结合实际负载测量。</text>
+<text x="80" y="1561" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">本图为原理模拟，省略实际异步与完整输入预留；没有声称所有版本都会产生这五轮相同计划。</text>
+<rect x="56" y="1631" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1671" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → R2 混合输入 [8,7,10,7] → 08：看 packed batch 如何隔离各自上下文</text>
+<text x="56" y="1731" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/configuration/optimization/" target="_blank"><text x="56" y="1767" font-size="17" fill="#2563eb">Optimization and Tuning</text></a>
+<a href="https://vllm.ai/blog/2025-01-27-v1-alpha-release" target="_blank"><text x="806" y="1767" font-size="17" fill="#2563eb">V1 architecture blog (2025)</text></a>
+<a href="https://github.com/vllm-project/vllm/blob/v0.30.0/vllm/v1/core/sched/scheduler.py" target="_blank"><text x="56" y="1798" font-size="17" fill="#2563eb">v0.30.0 · scheduler.py</text></a>
+</svg>

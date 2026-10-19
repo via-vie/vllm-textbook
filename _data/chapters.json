@@ -1,0 +1,100 @@
+[
+  {
+    "id": "chapter01",
+    "y": 0,
+    "height": 1725,
+    "file": "01_请求全流程与统一案例.svg",
+    "title": "一条请求，如何变成持续输出"
+  },
+  {
+    "id": "chapter02",
+    "y": 1749,
+    "height": 1835,
+    "file": "02_进程架构与启动内存.svg",
+    "title": "启动引擎：谁在 CPU，谁在 GPU"
+  },
+  {
+    "id": "chapter03",
+    "y": 3608,
+    "height": 1795,
+    "file": "03_统一调度与请求状态.svg",
+    "title": "统一调度：本轮还欠多少 token 的计算"
+  },
+  {
+    "id": "chapter04",
+    "y": 5427,
+    "height": 1882,
+    "file": "04_分页KV与地址映射.svg",
+    "title": "KV 分页：逻辑连续，物理可以不连续"
+  },
+  {
+    "id": "chapter05",
+    "y": 7333,
+    "height": 1715,
+    "file": "05_Prefill矩阵与KV写入.svg",
+    "title": "Prefill：ID、位置和槽位一起交给模型"
+  },
+  {
+    "id": "chapter06",
+    "y": 9072,
+    "height": 2229,
+    "file": "06_Decode分页Attention数值.svg",
+    "title": "Decode：按页读取 KV，算出下一 token"
+  },
+  {
+    "id": "chapter07",
+    "y": 11325,
+    "height": 1868,
+    "file": "07_连续批处理与分块Prefill.svg",
+    "title": "连续批处理：每轮 batch 都会变化"
+  },
+  {
+    "id": "chapter08",
+    "y": 13217,
+    "height": 1796,
+    "file": "08_混合批次与GPU输入打包.svg",
+    "title": "打包执行：四个 token 属于三个上下文"
+  },
+  {
+    "id": "chapter09",
+    "y": 15037,
+    "height": 1970,
+    "file": "09_前缀缓存与引用生命周期.svg",
+    "title": "前缀缓存：复用已经算过的上下文"
+  },
+  {
+    "id": "chapter10",
+    "y": 17031,
+    "height": 2277,
+    "file": "10_显存公式与抢占恢复.svg",
+    "title": "显存容量：多少历史，多少请求"
+  },
+  {
+    "id": "chapter11",
+    "y": 19332,
+    "height": 2029,
+    "file": "11_内核FlashAttention与CUDAGraph.svg",
+    "title": "执行加速：分页、FlashAttention、编译与图"
+  },
+  {
+    "id": "chapter12",
+    "y": 21385,
+    "height": 2074,
+    "file": "12_多GPU并行与通信.svg",
+    "title": "多 GPU：切权重、切层，还是复制模型"
+  },
+  {
+    "id": "chapter13",
+    "y": 23483,
+    "height": 2039,
+    "file": "13_量化投机与PD分离.svg",
+    "title": "进阶优化：精度、生成轮次与 P/D 分离"
+  },
+  {
+    "id": "chapter14",
+    "y": 25546,
+    "height": 2295,
+    "file": "14_性能指标与全链路回顾.svg",
+    "title": "闭合整条链：怎么知道优化有效"
+  }
+]

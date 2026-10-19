@@ -1,0 +1,90 @@
+{
+  "scope": "Hash semantics and ownership simulation, not binary-compatible with vLLM.",
+  "prefix_tokens": [
+    11,
+    10,
+    7,
+    8,
+    11,
+    10,
+    7,
+    8,
+    11,
+    10,
+    7,
+    8,
+    11,
+    10,
+    7,
+    8
+  ],
+  "A_prompt": [
+    11,
+    10,
+    7,
+    8,
+    11,
+    10,
+    7,
+    8,
+    11,
+    10,
+    7,
+    8,
+    11,
+    10,
+    7,
+    8,
+    11,
+    10,
+    7
+  ],
+  "B_prompt": [
+    11,
+    10,
+    7,
+    8,
+    11,
+    10,
+    7,
+    8,
+    11,
+    10,
+    7,
+    8,
+    11,
+    10,
+    7,
+    8,
+    11,
+    10,
+    9
+  ],
+  "hit_tokens": 16,
+  "same_prefix": true,
+  "different_parent": true,
+  "different_salt": true,
+  "shared_hash": "7e3b1e9ac7244fbed0931b66744d5fba5df2a31f5d452bd9cd56bae4c4a4ecb2",
+  "steps": [
+    {
+      "event": "A/B 持有共享块7",
+      "ref": 2,
+      "hash_present": true
+    },
+    {
+      "event": "A 结束",
+      "ref": 1,
+      "hash_present": true
+    },
+    {
+      "event": "B 结束",
+      "ref": 0,
+      "hash_present": true
+    },
+    {
+      "event": "重新分配块7：淘汰旧身份，交给C",
+      "ref": 1,
+      "hash_present": false
+    }
+  ]
+}

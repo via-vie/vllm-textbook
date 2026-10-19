@@ -1,0 +1,19 @@
+# Generated previews, browser profiles and local backups
+_qa/
+_archive/
+
+# Temporary partial upstream checkout; keep the verified reading snapshot
+_source/vllm-v0.30.0/
+
+# Python runtime and local virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+.venv-*/
+
+# Local environment and OS files
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db

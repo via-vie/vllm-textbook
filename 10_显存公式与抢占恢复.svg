@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2277" viewBox="0 0 1600 2277" role="img" aria-labelledby="title10 desc10"><title id="title10">显存容量：多少历史，多少请求</title><desc id="desc10">先数每 token 的 K/V，再算分块、共享节省与抢占恢复；不把权重当成 KV。。解释每步输入、处理与输出。</desc><defs><marker id="arr10" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="2277" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 10 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">显存容量：多少历史，多少请求</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">先数每 token 的 K/V，再算分块、共享节省与抢占恢复；不把权重当成 KV。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → L、h_kv、d、每元素字节数 s；块大小 b；物理块数量</text>
+<rect x="56" y="284" width="1488" height="260" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  普通 Dense / GQA Transformer 的 KV 公式</text>
+<text x="80" y="360" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">M_token = 2 × L × h_kv × d × s；2 分别代表 K 与 V。</text>
+<text x="80" y="394" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">教学模型 FP16：2×1×2×2×2 = 16 bytes/token；b=2，每物理块跨全部层合计 32 bytes。</text>
+<text x="80" y="428" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">A 在 c=3 时占2块=64 bytes，其中有效 KV 为48 bytes，最后一槽16 bytes 尚未使用。</text>
+<text x="80" y="462" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">A 在 c=4 时仍占2块=64 bytes；EOS 不输入，不会产生第5个 token 的 KV。</text>
+<text x="80" y="496" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">MLA、状态空间、跨层共享等特殊结构需另算；布局、对齐、缓存分组和元数据也占空间。</text>
+<rect x="56" y="566" width="1488" height="370" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="605" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  大模型容量算例：不绑定具体模型型号</text>
+<rect x="80" y="642" width="480" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="674" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">假设</text>
+<rect x="560" y="642" width="470" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="574" y="674" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">计算</text>
+<rect x="1030" y="642" width="490" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1044" y="674" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">结果</text>
+<rect x="80" y="696" width="480" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="728" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">L=32,h_kv=8,d=128,FP16</text>
+<rect x="560" y="696" width="470" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="574" y="728" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">2×32×8×128×2</text>
+<rect x="1030" y="696" width="490" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1044" y="728" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">131072 bytes = 128 KiB/token。</text>
+<rect x="80" y="750" width="480" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="782" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">b=16 token/block</text>
+<rect x="560" y="750" width="470" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="574" y="782" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">16×128 KiB</text>
+<rect x="1030" y="750" width="490" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1044" y="782" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">每块跨全部层 2 MiB。</text>
+<rect x="80" y="804" width="480" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="836" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">可用 KV 预算20 GiB</text>
+<rect x="560" y="804" width="470" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="574" y="836" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">20 GiB ÷ 2 MiB</text>
+<rect x="1030" y="804" width="490" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1044" y="836" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">10240块，共163840 token槽。</text>
+<rect x="80" y="858" width="480" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="890" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">每请求实际驻留4096 token</text>
+<rect x="560" y="858" width="470" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="574" y="890" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">ceil(4096/16)=256块</text>
+<rect x="1030" y="858" width="490" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1044" y="890" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">理想容量40条；尚未预留未来增长。</text>
+<rect x="56" y="958" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="997" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  R2 执行后、释放 A 前，数唯一物理块</text>
+<rect x="80.0" y="1034" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="1066" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">A：4 token</text>
+<text x="98.0" y="1100" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">table=[5,1]</text>
+<text x="98.0" y="1130" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">2 块 / 64 bytes</text>
+<path d="M525.0 1100L572.0 1100" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr10)"/>
+<rect x="580.0" y="1034" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="1066" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">B：3 token</text>
+<text x="598.0" y="1100" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">table=[5,7]</text>
+<text x="598.0" y="1130" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">块5与 A 共享</text>
+<path d="M1025.0 1100L1072.0 1100" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr10)"/>
+<rect x="1080.0" y="1034" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="1066" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">C：2 token</text>
+<text x="1098.0" y="1100" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">table=[3]</text>
+<text x="1098.0" y="1130" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">1 块 / 32 bytes</text>
+<text x="80" y="1232" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">独立块数2+2+1=5；实际唯一物理块 {5,1,7,3}=4，占128 bytes而不是160 bytes。</text>
+<rect x="56" y="1285" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1324" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  GPU 总预算扣除其他开销后，剩下才是 KV</text>
+<text x="80" y="1361" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">概念预算：GPU可用份额 − 权重 − 峰值激活/工作区 − 图与运行时开销 − 其他预留。</text>
+<text x="80" y="1395" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">gpu_memory_utilization 影响实例可用显存预算；还要留意其他进程与峰值所需空间。</text>
+<text x="80" y="1429" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">max_model_len、max_num_seqs 与本轮 token 预算分别约束上下文、序列数与计算量，不能互相替代。</text>
+<text x="80" y="1463" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">底层张量池可能已经预留很大；活动请求只引用部分块。池容量与当前活动占用要分别观察。</text>
+<rect x="56" y="1533" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1572" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">05  缺块时的重算式抢占与恢复</text>
+<rect x="80.0" y="1609" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="1641" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">分配不足</text>
+<text x="98.0" y="1675" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">回收闲置缓存仍不够</text>
+<text x="98.0" y="1705" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">需要暂停某个请求</text>
+<path d="M525.0 1675L572.0 1675" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr10)"/>
+<rect x="580.0" y="1609" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="1641" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">释放请求 KV 引用</text>
+<text x="598.0" y="1675" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">保留已知 token IDs</text>
+<text x="598.0" y="1705" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">请求转为等待恢复</text>
+<path d="M1025.0 1675L1072.0 1675" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr10)"/>
+<rect x="1080.0" y="1609" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="1641" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">稍后重新调度</text>
+<text x="1098.0" y="1675" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">Prompt + 已生成 IDs</text>
+<text x="1098.0" y="1705" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">重建或命中 KV 后继续</text>
+<text x="80" y="1807" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">重算恢复历史状态，不向用户重复发送旧内容；代价是额外计算与等待。</text>
+<rect x="56" y="1860" width="1488" height="158" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1899" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">06  与其他内存路径的关系</text>
+<text x="80" y="1936" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">V1 文档的典型抢占模式是 RECOMPUTE；CPU offload / KV connector 是另外配置和约束的机制。</text>
+<text x="80" y="1970" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">反复抢占通常说明容量或并发配置不适配，应结合 KV 使用、等待队列与请求长度分析。</text>
+<rect x="56" y="2040" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="2080" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 容量与计算成本已知 → 11：减少 GPU 读写和逐轮发射成本</text>
+<text x="56" y="2140" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://docs.vllm.ai/en/stable/configuration/optimization/" target="_blank"><text x="56" y="2176" font-size="17" fill="#2563eb">Optimization and Tuning</text></a>
+<a href="https://arxiv.org/html/2309.06180v1" target="_blank"><text x="806" y="2176" font-size="17" fill="#2563eb">PagedAttention paper · §3–5</text></a>
+<a href="https://docs.vllm.ai/en/stable/features/quantization/quantized_kvcache/" target="_blank"><text x="56" y="2207" font-size="17" fill="#2563eb">Quantized KV Cache</text></a>
+</svg>

@@ -1,0 +1,186 @@
+{
+  "scope": "Teaching simulation of synchronous main-path contracts, NOT actual vLLM scheduling.",
+  "ready_tokens_note": "Teaching field only. Released rows retain historical values, not live allocations.",
+  "block_size": 16,
+  "physical_block_example": 7,
+  "rows": [
+    {
+      "event": "提交：前端登记 → ADD → 核心等待",
+      "known_tokens": 3,
+      "num_computed_tokens": 0,
+      "num_in_flight_tokens": 0,
+      "ready_tokens_TEACHING_ONLY": 0,
+      "status": "WAITING",
+      "worker_row": false,
+      "active_KV_references": 0,
+      "accepted_output_ids": []
+    },
+    {
+      "event": "调度 prefill：计划 A3，提前记账",
+      "known_tokens": 3,
+      "num_computed_tokens": 3,
+      "num_in_flight_tokens": 3,
+      "ready_tokens_TEACHING_ONLY": 0,
+      "status": "RUNNING",
+      "worker_row": false,
+      "active_KV_references": 1,
+      "accepted_output_ids": []
+    },
+    {
+      "event": "GPU prefill 完成：候选尚未回填核心",
+      "known_tokens": 3,
+      "num_computed_tokens": 3,
+      "num_in_flight_tokens": 3,
+      "ready_tokens_TEACHING_ONLY": 3,
+      "status": "RUNNING",
+      "worker_row": true,
+      "active_KV_references": 1,
+      "accepted_output_ids": []
+    },
+    {
+      "event": "核心回填：接受鱼 8，发送输出",
+      "known_tokens": 4,
+      "num_computed_tokens": 3,
+      "num_in_flight_tokens": 0,
+      "ready_tokens_TEACHING_ONLY": 3,
+      "status": "RUNNING",
+      "worker_row": true,
+      "active_KV_references": 1,
+      "accepted_output_ids": [
+        8
+      ]
+    },
+    {
+      "event": "调度 decode：输入鱼，位置 3",
+      "known_tokens": 4,
+      "num_computed_tokens": 4,
+      "num_in_flight_tokens": 1,
+      "ready_tokens_TEACHING_ONLY": 3,
+      "status": "RUNNING",
+      "worker_row": true,
+      "active_KV_references": 1,
+      "accepted_output_ids": [
+        8
+      ]
+    },
+    {
+      "event": "GPU decode 完成：候选 EOS 尚未回填",
+      "known_tokens": 4,
+      "num_computed_tokens": 4,
+      "num_in_flight_tokens": 1,
+      "ready_tokens_TEACHING_ONLY": 4,
+      "status": "RUNNING",
+      "worker_row": true,
+      "active_KV_references": 1,
+      "accepted_output_ids": [
+        8
+      ]
+    },
+    {
+      "event": "核心回填并终止：移除活动请求，归还引用",
+      "known_tokens": 5,
+      "num_computed_tokens": 4,
+      "num_in_flight_tokens": 0,
+      "ready_tokens_TEACHING_ONLY": 4,
+      "status": "FINISHED_STOPPED",
+      "worker_row": true,
+      "active_KV_references": 0,
+      "accepted_output_ids": [
+        8,
+        1
+      ]
+    },
+    {
+      "event": "零 token 清理计划：Worker 删除持久行",
+      "known_tokens": 5,
+      "num_computed_tokens": 4,
+      "num_in_flight_tokens": 0,
+      "ready_tokens_TEACHING_ONLY": 4,
+      "status": "REMOVED",
+      "worker_row": false,
+      "active_KV_references": 0,
+      "accepted_output_ids": [
+        8,
+        1
+      ]
+    }
+  ],
+  "prefill": {
+    "input_ids": [
+      11,
+      10,
+      7
+    ],
+    "positions": [
+      0,
+      1,
+      2
+    ],
+    "logits": [
+      -0.7083607949246723,
+      -0.44586927787176134,
+      -0.7083607949246723,
+      -0.7083607949246723,
+      -0.7083607949246723,
+      -0.7083607949246723,
+      -0.7083607949246723,
+      -0.3475013251740038,
+      7.129444663184705,
+      -0.7083607949246723,
+      -0.6691877007416032,
+      -0.7083607949246723
+    ],
+    "probabilities": [
+      0.00039270957636644506,
+      0.0005105874187116408,
+      0.00039270957636644506,
+      0.00039270957636644506,
+      0.00039270957636644506,
+      0.00039270957636644506,
+      0.00039270957636644506,
+      0.0005633661753554352,
+      0.9953759712835599,
+      0.00039270957636644506,
+      0.0004083985114415092,
+      0.00039270957636644506
+    ],
+    "selected": 8
+  },
+  "decode": {
+    "input_ids": [
+      8
+    ],
+    "positions": [
+      3
+    ],
+    "logits": [
+      -0.5379857273173779,
+      7.142777548905733,
+      -0.5379857273173779,
+      -0.5379857273173779,
+      -0.5379857273173779,
+      -0.5379857273173779,
+      -0.5379857273173779,
+      -1.1183062367448944,
+      -0.43513194363630364,
+      -0.5379857273173779,
+      -1.285453549985511,
+      -0.5379857273173779
+    ],
+    "probabilities": [
+      0.00045947135973038316,
+      0.9953402195293348,
+      0.00045947135973038316,
+      0.00045947135973038316,
+      0.00045947135973038316,
+      0.00045947135973038316,
+      0.00045947135973038316,
+      0.00025717482363041305,
+      0.000509245589518173,
+      0.00045947135973038316,
+      0.00021758917967349637,
+      0.00045947135973038316
+    ],
+    "selected": 1
+  }
+}

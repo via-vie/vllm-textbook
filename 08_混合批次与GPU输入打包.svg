@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1796" viewBox="0 0 1600 1796" role="img" aria-labelledby="title8 desc8"><title id="title8">打包执行：四个 token 属于三个上下文</title><desc id="desc8">Packed / ragged batch 把新 token 排在一起；元数据保证每行只看自己的历史。。解释每步输入、处理与输出。</desc><defs><marker id="arr8" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#52647b"/></marker></defs><style>text{font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif}.mono{font-family:Consolas,"Microsoft YaHei",monospace}</style><rect width="1600" height="1796" fill="#f3f6fb"/>
+<rect x="0" y="0" width="1600" height="182" rx="0" fill="#14243b" stroke="#d9e3ee"/>
+<text x="56" y="38" font-size="17" fill="#9ec5ff" font-weight="700" text-anchor="start">vLLM EXPLAINED / 08 / 14</text>
+<text x="56" y="99" font-size="38" fill="white" font-weight="700" text-anchor="start">打包执行：四个 token 属于三个上下文</text>
+<text x="56" y="145" font-size="21" fill="#cbd9eb" font-weight="400" text-anchor="start">Packed / ragged batch 把新 token 排在一起；元数据保证每行只看自己的历史。</text>
+<rect x="56" y="206" width="1488" height="58" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="78" y="243" font-size="21" fill="#2563eb" font-weight="700" text-anchor="start">本步输入 → R2：A Decode 1；B Prefill 尾部 1；C Prefill 开头 2</text>
+<rect x="56" y="284" width="1488" height="316" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="323" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">01  先按请求展开，所有位置都来自各自状态</text>
+<rect x="80" y="360" width="310" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="94" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">请求 / 新 IDs</text>
+<rect x="390" y="360" width="220" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="404" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">positions</text>
+<rect x="610" y="360" width="470" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="624" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">已有 KV / 本轮写入</text>
+<rect x="1080" y="360" width="440" height="54" rx="0" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1094" y="392" font-size="21" fill="#2563eb" font-weight="400" text-anchor="start">有效上下文</text>
+<rect x="80" y="414" width="310" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A：[8]</text>
+<rect x="390" y="414" width="220" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="404" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[3]</text>
+<rect x="610" y="414" width="470" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="624" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">已有 p0–p2；新写 slot3</text>
+<rect x="1080" y="414" width="440" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1094" y="446" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">A 的 p0–p3，共4 token。</text>
+<rect x="80" y="468" width="310" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="94" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">B：[7]</text>
+<rect x="390" y="468" width="220" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="404" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[2]</text>
+<rect x="610" y="468" width="470" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="624" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">共享前2；新写 slot14</text>
+<rect x="1080" y="468" width="440" height="54" rx="0" fill="white" stroke="#d9e3ee"/>
+<text x="1094" y="500" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">B 的 p0–p2，共3 token。</text>
+<rect x="80" y="522" width="310" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="94" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">C：[10,7]</text>
+<rect x="390" y="522" width="220" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="404" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">[0,1]</text>
+<rect x="610" y="522" width="470" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="624" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">新写 slots=[6,7]</text>
+<rect x="1080" y="522" width="440" height="54" rx="0" fill="#f7f9fc" stroke="#d9e3ee"/>
+<text x="1094" y="554" font-size="21" fill="#14243b" font-weight="400" text-anchor="start">p0 只看自身；p1 看 p0,p1。</text>
+<rect x="56" y="622" width="1488" height="340" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="661" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">02  把新 token 打包成四行，而不是补齐到统一 Prompt 长度</text>
+<rect x="80" y="698" width="232" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="196.0" y="733" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">A / 8</text>
+<rect x="320" y="698" width="232" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="436.0" y="733" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">B / 7</text>
+<rect x="560" y="698" width="232" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="676.0" y="733" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">C / 10</text>
+<rect x="800" y="698" width="232" height="54" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="916.0" y="733" font-size="21" fill="#2563eb" font-weight="700" text-anchor="middle">C / 7</text>
+<text x="80" y="808" font-size="24" fill="#14243b" font-weight="400" text-anchor="start">input_ids       = [8, 7, 10, 7]</text>
+<text x="80" y="847" font-size="24" fill="#14243b" font-weight="400" text-anchor="start">positions       = [3, 2, 0, 1]</text>
+<text x="80" y="886" font-size="24" fill="#14243b" font-weight="400" text-anchor="start">slot_mapping    = [3, 14, 6, 7]</text>
+<text x="80" y="925" font-size="24" fill="#14243b" font-weight="400" text-anchor="start">query_start_loc = [0, 1, 2, 4]</text>
+<text x="1100" y="718" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">边界 [0,1,2,4]：</text>
+<text x="1100" y="754" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">A 占行 [0,1)</text>
+<text x="1100" y="790" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">B 占行 [1,2)</text>
+<text x="1100" y="826" font-size="21" fill="#52647b" font-weight="400" text-anchor="start">C 占行 [2,4)</text>
+<rect x="56" y="984" width="1488" height="226" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1023" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">03  Packed 行号不是 token 的模型位置</text>
+<text x="80" y="1060" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">positions=[3,2,0,1] 不能改成 [0,1,2,3]；RoPE 使用本请求位置，不使用 packed 全局行号。</text>
+<text x="80" y="1094" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">Attention 还需要 query_start_loc、各请求 block_table 和有效长度，才能找到各自合法上下文。</text>
+<text x="80" y="1128" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">A/B 仅因相同前缀共享物理块5；私有尾部在块1与块7。C 不能关注 A/B。</text>
+<text x="80" y="1162" font-size="22" fill="#14243b" font-weight="400" text-anchor="start">共享权重的线性层可按 packed 大矩阵计算；Attention 后端再依据请求边界与因果关系处理。</text>
+<rect x="56" y="1232" width="1488" height="305" rx="12" fill="white" stroke="#d9e3ee"/>
+<text x="80" y="1271" font-size="26" fill="#14243b" font-weight="700" text-anchor="start">04  前向结束后，恢复请求身份并更新状态</text>
+<rect x="80.0" y="1308" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="98.0" y="1340" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Packed H [4,4]</text>
+<text x="98.0" y="1374" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">查表、Norm、投影</text>
+<text x="98.0" y="1404" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">按槽位写新 K/V</text>
+<path d="M525.0 1374L572.0 1374" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr8)"/>
+<rect x="580.0" y="1308" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="598.0" y="1340" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">Attention 与 FFN</text>
+<text x="598.0" y="1374" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">读各自块表和上下文</text>
+<text x="598.0" y="1404" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">保持行与请求的对应</text>
+<path d="M1025.0 1374L1072.0 1374" fill="none" stroke="#52647b" stroke-width="2.4" marker-end="url(#arr8)"/>
+<rect x="1080.0" y="1308" width="440.0" height="140" rx="12" fill="#eaf1ff" stroke="#d9e3ee"/>
+<text x="1098.0" y="1340" font-size="22" fill="#2563eb" font-weight="700" text-anchor="start">按请求取尾部输出</text>
+<text x="1098.0" y="1374" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">A→EOS；B→鱼</text>
+<text x="1098.0" y="1404" font-size="20" fill="#52647b" font-weight="400" text-anchor="start">C 未到 Prompt 尾部</text>
+<text x="80" y="1506" font-size="21" fill="#087f8c" font-weight="400" text-anchor="start">本例非投机生成只对到达可采样位置的请求返回 token；部分 Prefill chunk 不生成首 token。</text>
+<rect x="56" y="1559" width="1488" height="64" rx="12" fill="#e5f6f1" stroke="#d9e3ee"/>
+<text x="80" y="1599" font-size="21" fill="#087f8c" font-weight="700" text-anchor="start">交给下一步 → 各请求进度与共享块引用 → 09：解释前缀命中的完整生命周期</text>
+<text x="56" y="1659" font-size="17" fill="#52647b" font-weight="400" text-anchor="start">参考原文 · 官方设计 / 论文；案例与数值推导为原创教学示例</text>
+<a href="https://vllm.ai/blog/2025-01-27-v1-alpha-release" target="_blank"><text x="56" y="1695" font-size="17" fill="#2563eb">V1 architecture blog (2025)</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/paged_attention/" target="_blank"><text x="806" y="1695" font-size="17" fill="#2563eb">Paged Attention kernel</text></a>
+<a href="https://docs.vllm.ai/en/stable/design/arch_overview/" target="_blank"><text x="56" y="1726" font-size="17" fill="#2563eb">Architecture Overview</text></a>
+</svg>

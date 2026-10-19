@@ -1,0 +1,17 @@
+{
+  "chapters": 23,
+  "figures": 12,
+  "source_files": 123,
+  "source_references": 77,
+  "unique_source_symbols": 75,
+  "exercises": 69,
+  "manuscript_characters": 56517,
+  "reading_pauses": 22,
+  "commit": "ced6857afa0ea7b2e3f0846a62e1394e90f15607",
+  "lab_check": {
+    "status": "passed",
+    "reference_logits_max_abs_error": 1.3322676295501878e-15,
+    "attention_max_abs_error": 4.163336342344337e-17,
+    "note": "CPU teaching labs only; no actual vLLM or CUDA run."
+  }
+}
